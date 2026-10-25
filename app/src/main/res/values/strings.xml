@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Погода</string>
-    <string name="skeleton_status">Скелет · этап 1 · данные ещё не подключены</string>
+    <string name="section_days">Прогноз на 10 дней</string>
+    <string name="attribution">Данные: Яндекс Погода (Meteum)</string>
+    <string name="stale_note">данные из кэша</string>
+    <string name="retry">Повторить</string>
 </resources>
