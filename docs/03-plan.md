@@ -15,12 +15,18 @@
 - Готово: Gradle 8.10.2 + AGP 8.7.3 + Kotlin 2.0.21, Compose-скелет (MainActivity, тема, иконка), CI (`android-ci.yml`), README, `.gitignore` (референсы/анализ не публикуются), `local.properties` с SDK.
 - Проверка: первая сборка `:app:assembleDebug` зелёная, размер зафиксирован как база, push в main прошёл, CI зелёный.
 
-### Этап 2. Спайки источников
-1. **Yandex GraphQL**: подобрать запросы `fact/hourly/daily/location` по шаблонам из HAR; при пробелах — декомпиляция `ru.yandex.weatherplugin.apk` через REA (Apollo-схемы в коде). Проверить заголовки (UA/origin) с ПК.
-2. **Nowcast-тайл**: формат `new_encoded_tile` (бинарный); если не расшифровывается за разумное время — баннер из почасовых полей.
-3. **Raster-maps raw-tile**: формат слоёв температуры/ветра/давления/снега.
-4. **Open-Meteo geocoding**: смок поиска «Москва»/«СПб» на ru.
-- Выход: зафиксированные запросы, фикстуры ответов в `app/src/test/resources/fixtures/`, вывод спайк-скрипта (JVM) с домен-моделью для Москвы и СПб.
+### Этап 2. Спайки источников — ЗАВЕРШЁН (25.10.2026)
+
+Результаты (детали в `docs/05-source-yandex-web.md`):
+- GraphQL `api.weather.yandex.ru/graphql/query` закрыт динамическим токеном (`x-yandex-weather-token` веб-клиента;
+  мобильный `X-Yandex-API-Key` в APK статикой не лежит) — путь отклонён **по решению Сергея выбран парсинг HTML/RSC**.
+- Свежие PNG-тайлы nowcast/raster-maps без токена — 404 (серверный кэш отдаёт только пары из HAR); погодные слои
+  карты отложены, базовая карта — OSM.
+- **Рабочий путь**: `GET /pogoda/ru/{city}` → flight-поток → fact + почасовая + 10 дней (прототип
+  `.analysis/parse_yandex_web.py`, фикстура `app/src/test/resources/fixtures/yandex_moscow.json`).
+- Open-Meteo geocoding — работает (Москва: 55.75204, 37.61781); `api.open-meteo.com` с этой машины не отвечает;
+  `api.met.no` — 200 OK, зафиксирован как резервный источник.
+- Проверка: фикстура снята с живых данных, прототип печатает домен-модель Москвы (10 дней × части суток, 39+ часовых ячеек).
 
 ### Этап 3. Слой данных
 - Домен-модели; `YandexSource` (GraphQL DTO, nowcast); Open-Meteo геокодер; `WeatherRepository` (кэш, TTL, деградация); форматтеры единиц.

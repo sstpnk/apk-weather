@@ -22,8 +22,7 @@
 tech.stpnk.weather
 ├── domain/            # модели (Place, Current, HourPoint, DayForecast, Nowcast, Units) + Repository
 ├── data/
-│   ├── yandex/        # YandexSource: GraphQL-клиент api.weather.yandex.ru/graphql/query,
-│   │                  #   DTO kotlinx-serialization, nowcast/raster-тайлы
+│   ├── yandex/        # YandexSource: RSC/flight-парсер pogoda.yandex.ru (docs/05), DTO kotlinx-serialization
 │   ├── geo/           # OpenMeteoGeocoder: поиск городов (geocoding-api.open-meteo.com, без ключа)
 │   ├── cache/         # файловый JSON-кэш (filesDir, TTL по типу данных)
 │   └── repo/          # WeatherRepository: Яндекс → кэш → деградация на кэш при ошибках
@@ -56,13 +55,20 @@ tech.stpnk.weather
 | DI | ручной AppContainer | без Hilt/Koin |
 | Подпись | свой keystore Сергея; пути/пароли в `local.properties` (не коммитится) | до заполнения релиз подписывается debug-ключом |
 
-## 5. Источник данных: Яндекс
+## 5. Источник данных: Яндекс (RSC-парсинг pogoda.yandex.ru)
 
-- **Прогноз**: `POST api.weather.yandex.ru/graphql/query` — запросы вида `query main { … }` (шаблоны из HAR; в HAR эндпоинт вызывался без cookie/Authorization). Спайк этапа 2 фиксирует конкретные запросы (fact/hourly/daily/location) и сохраняет ответы как фикстуры тестов.
-- **Баннер осадков**: бинарный тайл `/frontend/nowcast/new_encoded_tile` — спайк формата; если не расшифруем, текст баннера собирается из почасового прогноза (поля precipitation/condition).
-- **Карта**: растровые слои `/frontend/raster-maps/{temperature,union-wind,pressure-mm,snow-depth}/raw-tile` — спайк формата (PNG/бинарный). Слой осадков — из nowcast-тайла или радарной анимации; при недоступности — слой откладывается, карта остаётся с базовыми тайлами OSM.
-- **Риски и деградация**: эндпоинт недокументирован — код обязан жить при 403/429/изменении схемы: показ кэша, retry с backoff, понятная ошибка в UI. Если Яндекс закроет доступ — резервный план: Open-Meteo (бесплатный, без ключа) как второй `WeatherSource`.
-- **Кэш**: JSON в filesDir, ключи `datatype+placeId`, TTL 30 мин (только снижает частоту запросов; показ всегда из кэша + фоновое обновление).
+Решение от 25.10.2026 (после спайка): graphql закрыт динамическим токеном, выбран парсинг веб-страниц.
+Полная спецификация — `docs/05-source-yandex-web.md`.
+
+- **Прогноз**: `GET https://yandex.ru/pogoda/ru/{city}` (1 запрос на обновление) → разбор Next.js flight-потока
+  (чанки `self.__next_f.push`, строки `hex:JSON`, резолвинг `$L`-ссылок) → текущая погода (fact-словарь),
+  почасовая лента (`AppHourlyItem_*`), 10 дней (`AppForecastDay_container__` + `gridArea m/d/e/n-*`).
+- **Детали дня/восходы**: `GET /pogoda/ru/{city}/details` с `RSC: 1` (этап 3).
+- **Баннер осадков**: из почасового прогноза (prec/condition) — nowcast-тайлы без токена недоступны.
+- **Карта**: базовые тайлы OSM (osmdroid); погодные слои Яндекса отложены (нужен токен) — не блокируют MVP.
+- **Риски и деградация**: смена вёрстки/капча — тесты на фикстуре `app/src/test/resources/fixtures/yandex_moscow.json`,
+  показ кэша, retry с backoff; резервный источник — met.no (проверен: 200 OK без ключа) как второй `WeatherSource`.
+- **Кэш**: JSON в filesDir, ключи `datatype+placeId`, TTL 30–60 мин; никаких параллельных запросов к Яндексу.
 - Атрибуция «Данные: Яндекс Погода (Meteum)» — в настройках и внизу главного экрана.
 
 ## 6. Экраны
@@ -83,8 +89,9 @@ Compose-стек добавляет к v1-оценке: Compose runtime+UI ~1.5 
 - Ручная проверка на устройстве по чек-листу перед релизом.
 - CI GitHub Actions: сборка + тесты на каждый push в main.
 
-## 9. Открытые вопросы этапа 2 (спайки)
+## 9. Открытые вопросы (после спайка этапа 2)
 
-1. Точные GraphQL-запросы fact/hourly/daily/location и их обязательные заголовки (при необходимости — декомпиляция APK через REA/JADX: Apollo-запросы лежат в коде).
-2. Формат nowcast-тайла и raster-maps raw-tile (PNG или бинарный протокол).
-3. Параметры nowcast-запроса (bbox, зум) для баннера «2 часа».
+1. Детали «сегодня» (день/ночь) и восходы — через `/details` с `RSC: 1` (этап 3).
+2. Маппинг `--icon`-индексов спрайта Яндекса на наши вектора — по тексту `condition` + времени суток (этап 3–4).
+3. Городские slug-и для не-Москвы — из поиска Open-Meteo (имя→slug эвристикой) или через поиск Яндекса (уточнить на этапе 6).
+4. Мониторинг живости парсера: интеграционный смок на CI не чаще раза в сутки и не блокирующий.
