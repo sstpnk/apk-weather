@@ -6,6 +6,7 @@ import android.location.Location
 import android.location.LocationManager
 import android.os.Build
 import android.os.CancellationSignal
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -35,6 +36,7 @@ class LocationHelper(private val context: Context) {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     @SuppressLint("MissingPermission")
     private suspend fun requestCurrent(manager: LocationManager): Pair<Double, Double>? =
         suspendCancellableCoroutine { cont ->

@@ -3,6 +3,7 @@ package tech.stpnk.weather
 import android.app.Application
 import android.content.Context
 import okhttp3.OkHttpClient
+import tech.stpnk.weather.bg.BackgroundScheduler
 import tech.stpnk.weather.data.cache.WeatherCache
 import tech.stpnk.weather.data.cities.CitiesStore
 import tech.stpnk.weather.data.geo.GeoSearchSource
@@ -12,6 +13,7 @@ import tech.stpnk.weather.data.prefs.SettingsStore
 import tech.stpnk.weather.data.prefs.SharedPrefsStore
 import tech.stpnk.weather.data.repo.WeatherRepository
 import tech.stpnk.weather.data.yandex.YandexWebSource
+import tech.stpnk.weather.notify.Notifications
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -19,6 +21,8 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         Graph.init(this)
+        Notifications.ensure(this)
+        BackgroundScheduler.schedule(this)
     }
 }
 
