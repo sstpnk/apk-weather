@@ -1,0 +1,16 @@
+.gradle/
+build/
+app/build/
+.kotlin/
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Локальные материалы проекта (референсы и анализ) — не публикуем
+.reference/
+.analysis/
+.zwork/
+.claude/
