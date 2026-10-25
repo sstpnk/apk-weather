@@ -28,9 +28,17 @@
   `api.met.no` — 200 OK, зафиксирован как резервный источник.
 - Проверка: фикстура снята с живых данных, прототип печатает домен-модель Москвы (10 дней × части суток, 39+ часовых ячеек).
 
-### Этап 3. Слой данных
-- Домен-модели; `YandexSource` (GraphQL DTO, nowcast); Open-Meteo геокодер; `WeatherRepository` (кэш, TTL, деградация); форматтеры единиц.
-- Проверка: unit-тесты на фикстурах (парсинг, fallback, единицы), прогон репозитория на живых данных, отчёт покрытия.
+### Этап 3. Слой данных — ЗАВЕРШЁН (25.10.2026)
+
+- Домен-модели `WeatherData/CurrentWeather/HourForecast/DayForecast/GeoPlace` (kotlinx-serialization).
+- `FlightExtractor` — линейный сканер чанков `__next_f` (regex заменили из-за StackOverflow на больших чанках).
+- `FlightParser` — строки `hex:JSON`, резолвинг `$`/`$L`-ссылок, fact/почасовая/10 дней с частями суток.
+- `YandexWebSource` (OkHttp) → `WeatherCache` (файлы, JSON) → `WeatherRepository` (cache-first, TTL 30 мин,
+  при ошибке сети — устаревший кэш, без кэша — Failed).
+- `Graph` — ручной DI, `App` подключён в манифесте.
+- Тесты (10, все зелёные): парсер на gz-фикстуре страницы (текущая погода, место geo_id 213, 10 дней
+  с частями m/d/e/n, почасовая лента) + репозиторий (fresh/stale/force/failed).
+- Проверка: `gradlew :app:testDebugUnitTest` — BUILD SUCCESSFUL.
 
 ### Этап 4. Главный экран (Compose)
 - Шапка, блок «сейчас», почасовая лента (LazyRow), список 10 дней (LazyColumn), карточка осадков, pull-to-refresh, состояния загрузка/ошибка/кэш.
