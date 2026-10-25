@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -21,9 +22,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,24 +47,39 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import tech.stpnk.weather.R
+import tech.stpnk.weather.data.prefs.AppSettings
 import tech.stpnk.weather.domain.model.CurrentWeather
 import tech.stpnk.weather.domain.model.DayForecast
 import tech.stpnk.weather.domain.model.HourForecast
-import tech.stpnk.weather.domain.model.WeatherData
 import tech.stpnk.weather.ui.conditionTextRu
+import tech.stpnk.weather.ui.formatPressure
 import tech.stpnk.weather.ui.formatTemp
+import tech.stpnk.weather.ui.formatWind
 import tech.stpnk.weather.ui.precipitationOutlook
 import tech.stpnk.weather.ui.weatherIconRes
 import tech.stpnk.weather.ui.windDirectionRu
 
 @Composable
-fun MainScreen(viewModel: MainViewModel) {
+fun MainScreen(
+    viewModel: MainViewModel,
+    settings: AppSettings,
+    onOpenCities: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenMap: () -> Unit,
+) {
     val state by viewModel.state.collectAsState()
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         when (val s = state) {
             MainUiState.Loading -> LoadingScreen()
             is MainUiState.Error -> ErrorScreen(s.message, onRetry = { viewModel.refresh(force = true) })
-            is MainUiState.Content -> ContentScreen(s, onRefresh = { viewModel.refresh(force = true) })
+            is MainUiState.Content -> ContentScreen(
+                state = s,
+                settings = settings,
+                onRefresh = { viewModel.refresh(force = true) },
+                onOpenCities = onOpenCities,
+                onOpenSettings = onOpenSettings,
+                onOpenMap = onOpenMap,
+            )
         }
     }
 }
@@ -87,7 +105,14 @@ private fun ErrorScreen(message: String, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun ContentScreen(state: MainUiState.Content, onRefresh: () -> Unit) {
+private fun ContentScreen(
+    state: MainUiState.Content,
+    settings: AppSettings,
+    onRefresh: () -> Unit,
+    onOpenCities: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenMap: () -> Unit,
+) {
     val data = state.data
     val current = data.current
     val isDay = current?.daytime != false
@@ -100,12 +125,18 @@ private fun ContentScreen(state: MainUiState.Content, onRefresh: () -> Unit) {
         Column(
             Modifier.fillMaxWidth().background(headerBrush).statusBarsPadding().padding(bottom = 20.dp)
         ) {
-            TopBar(city = data.place?.city, district = data.place?.district ?: data.place?.province, onRefresh = onRefresh)
-            HeroBlock(current = current, isDay = isDay)
+            TopBar(
+                city = data.place?.city,
+                district = data.place?.district ?: data.place?.province,
+                onOpenCities = onOpenCities,
+                onOpenSettings = onOpenSettings,
+                onRefresh = onRefresh,
+            )
+            HeroBlock(current = current, isDay = isDay, settings = settings)
             Spacer(Modifier.height(18.dp))
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                MetricColumn(current)
-                HourlyStrip(hourly = data.hourly, isDay = isDay, modifier = Modifier.weight(1f))
+                MetricColumn(current, settings)
+                HourlyStrip(hourly = data.hourly, isDay = isDay, settings = settings, modifier = Modifier.weight(1f))
             }
         }
 
@@ -115,6 +146,21 @@ private fun ContentScreen(state: MainUiState.Content, onRefresh: () -> Unit) {
                 Spacer(Modifier.height(12.dp))
                 NowcastBanner(outlook)
             }
+            Spacer(Modifier.height(10.dp))
+            Button(
+                onClick = onOpenMap,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                ),
+                shape = RoundedCornerShape(14.dp),
+            ) {
+                Icon(Icons.Filled.Place, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Показать на карте")
+            }
+
             Spacer(Modifier.height(20.dp))
             Text(
                 stringResource(R.string.section_days),
@@ -123,26 +169,32 @@ private fun ContentScreen(state: MainUiState.Content, onRefresh: () -> Unit) {
             )
             Spacer(Modifier.height(10.dp))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                data.days.forEach { day -> DayRow(day) }
+                data.days.forEach { day -> DayRow(day, settings) }
             }
             Spacer(Modifier.height(20.dp))
             Text(
                 text = stringResource(R.string.attribution) + if (state.stale) " · ${stringResource(R.string.stale_note)}" else "",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
-                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 16.dp),
             )
         }
     }
 }
 
 @Composable
-private fun TopBar(city: String?, district: String?, onRefresh: () -> Unit) {
+private fun TopBar(
+    city: String?,
+    district: String?,
+    onOpenCities: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onRefresh: () -> Unit,
+) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = { /* список городов — этап 6 */ }) {
+        IconButton(onClick = onOpenCities) {
             Icon(Icons.Filled.Menu, contentDescription = "Города", tint = Color.White)
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -159,20 +211,20 @@ private fun TopBar(city: String?, district: String?, onRefresh: () -> Unit) {
         IconButton(onClick = onRefresh) {
             Icon(Icons.Filled.Refresh, contentDescription = "Обновить", tint = Color.White)
         }
-        IconButton(onClick = { /* настройки — этап 6 */ }) {
+        IconButton(onClick = onOpenSettings) {
             Icon(Icons.Filled.Settings, contentDescription = "Настройки", tint = Color.White)
         }
     }
 }
 
 @Composable
-private fun HeroBlock(current: CurrentWeather?, isDay: Boolean) {
+private fun HeroBlock(current: CurrentWeather?, isDay: Boolean, settings: AppSettings) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 24.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            formatTemp(current?.temperatureC),
+            formatTemp(current?.temperatureC, settings.tempUnit),
             color = Color.White,
             fontSize = 76.sp,
             fontWeight = FontWeight.Light,
@@ -192,7 +244,7 @@ private fun HeroBlock(current: CurrentWeather?, isDay: Boolean) {
         fontSize = 18.sp,
     )
     Text(
-        "Ощущается как: ${formatTemp(current?.feelsLikeC)}",
+        "Ощущается как: ${formatTemp(current?.feelsLikeC, settings.tempUnit)}",
         Modifier.fillMaxWidth().padding(horizontal = 24.dp),
         color = Color.White.copy(alpha = 0.75f),
         fontSize = 14.sp,
@@ -200,17 +252,16 @@ private fun HeroBlock(current: CurrentWeather?, isDay: Boolean) {
 }
 
 @Composable
-private fun MetricColumn(current: CurrentWeather?) {
+private fun MetricColumn(current: CurrentWeather?, settings: AppSettings) {
     val wind = buildString {
-        current?.windSpeedMs?.let { append(if (it % 1.0 == 0.0) it.toInt().toString() else it.toString()) }
-        windDirectionRu(current?.windDirection)?.let { if (isNotEmpty()) append(", "); append(it) }
-        if (isEmpty()) append("—")
+        append(formatWind(current?.windSpeedMs, settings.windUnit))
+        windDirectionRu(current?.windDirection)?.let { dir -> if (isNotEmpty()) append(", $dir") }
     }
-    Column(Modifier.width(148.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+    Column(Modifier.width(150.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
         MetricRow("Ветер", wind)
-        MetricRow("Давление", current?.pressureMmHg?.let { "$it мм рт. ст." } ?: "—")
+        MetricRow("Давление", formatPressure(current?.pressureMmHg, settings.pressureUnit))
         MetricRow("Влажность", current?.humidity?.let { "$it%" } ?: "—")
-        current?.waterTempC?.let { MetricRow("Вода", formatTemp(it)) }
+        current?.waterTempC?.let { MetricRow("Вода", formatTemp(it, settings.tempUnit)) }
     }
 }
 
@@ -223,7 +274,7 @@ private fun MetricRow(label: String, value: String) {
 }
 
 @Composable
-private fun HourlyStrip(hourly: List<HourForecast>, isDay: Boolean, modifier: Modifier = Modifier) {
+private fun HourlyStrip(hourly: List<HourForecast>, isDay: Boolean, settings: AppSettings, modifier: Modifier = Modifier) {
     LazyRow(modifier, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         items(hourly) { hour ->
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -236,7 +287,12 @@ private fun HourlyStrip(hourly: List<HourForecast>, isDay: Boolean, modifier: Mo
                     tint = Color.Unspecified,
                 )
                 Spacer(Modifier.height(4.dp))
-                Text(formatTemp(hour.temperatureC), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    formatTemp(hour.temperatureC, settings.tempUnit),
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
         }
     }
@@ -271,7 +327,7 @@ private fun NowcastBanner(text: String) {
 }
 
 @Composable
-private fun DayRow(day: DayForecast) {
+private fun DayRow(day: DayForecast, settings: AppSettings) {
     val dayPart = day.parts["d"]
     val nightPart = day.parts["n"]
     val (weekday, date) = splitLabel(day.label)
@@ -304,18 +360,18 @@ private fun DayRow(day: DayForecast) {
                 tint = Color.Unspecified,
             )
             Spacer(Modifier.width(20.dp))
-            TempColumn("День", dayPart?.temperatureC)
+            TempColumn("День", dayPart?.temperatureC, settings)
             Spacer(Modifier.width(14.dp))
-            TempColumn("Ночь", nightPart?.temperatureC)
+            TempColumn("Ночь", nightPart?.temperatureC, settings)
         }
     }
 }
 
 @Composable
-private fun TempColumn(label: String, value: Int?) {
+private fun TempColumn(label: String, value: Int?, settings: AppSettings) {
     Column(horizontalAlignment = Alignment.End) {
         Text(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f))
-        Text(formatTemp(value), fontSize = 16.sp, fontWeight = FontWeight.Medium)
+        Text(formatTemp(value, settings.tempUnit), fontSize = 16.sp, fontWeight = FontWeight.Medium)
     }
 }
 

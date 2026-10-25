@@ -4,6 +4,12 @@ import android.app.Application
 import android.content.Context
 import okhttp3.OkHttpClient
 import tech.stpnk.weather.data.cache.WeatherCache
+import tech.stpnk.weather.data.cities.CitiesStore
+import tech.stpnk.weather.data.geo.GeoSearchSource
+import tech.stpnk.weather.data.geo.LocationHelper
+import tech.stpnk.weather.data.prefs.KeyValueStore
+import tech.stpnk.weather.data.prefs.SettingsStore
+import tech.stpnk.weather.data.prefs.SharedPrefsStore
 import tech.stpnk.weather.data.repo.WeatherRepository
 import tech.stpnk.weather.data.yandex.YandexWebSource
 import java.io.File
@@ -25,6 +31,8 @@ object Graph {
         appContext = context.applicationContext
     }
 
+    private fun ctx(): Context = requireNotNull(appContext) { "Graph.init не вызван" }
+
     val http: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
@@ -34,12 +42,17 @@ object Graph {
 
     val source: YandexWebSource by lazy { YandexWebSource(http) }
 
-    val cache: WeatherCache by lazy {
-        WeatherCache(File(requireNotNull(appContext).filesDir, "weather-cache"))
-    }
+    val cache: WeatherCache by lazy { WeatherCache(File(ctx().filesDir, "weather-cache")) }
 
     val repository: WeatherRepository by lazy { WeatherRepository(source, cache) }
 
-    /** Москва — стартовый город до появления списка городов (этап 6). */
-    const val DEFAULT_CITY_URL = "https://yandex.ru/pogoda/ru/moscow"
+    val kv: KeyValueStore by lazy { SharedPrefsStore(ctx()) }
+
+    val settings: SettingsStore by lazy { SettingsStore(kv) }
+
+    val cities: CitiesStore by lazy { CitiesStore(kv) }
+
+    val geo: GeoSearchSource by lazy { GeoSearchSource(http) }
+
+    val location: LocationHelper by lazy { LocationHelper(ctx()) }
 }

@@ -1,9 +1,13 @@
 package tech.stpnk.weather.ui
 
 import tech.stpnk.weather.R
+import tech.stpnk.weather.data.prefs.PressureUnit
+import tech.stpnk.weather.data.prefs.TempUnit
+import tech.stpnk.weather.data.prefs.WindUnit
+import kotlin.math.roundToInt
 
 /**
- * Презентационные форматтеры: температуры, направление ветра, тексты условий.
+ * Презентационные форматтеры: температуры, ветер, давление, тексты условий.
  * Чистый Kotlin — тестируется без Android.
  */
 
@@ -11,6 +15,30 @@ fun formatTemp(value: Int?): String = when {
     value == null -> "—"
     value > 0 -> "+$value°"
     else -> "$value°"
+}
+
+/** Температура с учётом единиц настроек. */
+fun formatTemp(valueC: Int?, unit: TempUnit): String {
+    if (valueC == null) return "—"
+    val v = when (unit) {
+        TempUnit.CELSIUS -> valueC
+        TempUnit.FAHRENHEIT -> (valueC * 9.0 / 5.0 + 32.0).roundToInt()
+    }
+    return if (v > 0) "+$v°" else "$v°"
+}
+
+fun formatWind(speedMs: Double?, unit: WindUnit): String {
+    val ms = speedMs ?: return "—"
+    return when (unit) {
+        WindUnit.METERS_PER_SECOND -> if (ms % 1.0 == 0.0) "${ms.toInt()} м/с" else "$ms м/с"
+        WindUnit.KM_PER_HOUR -> "${(ms * 3.6).roundToInt()} км/ч"
+    }
+}
+
+fun formatPressure(mmHg: Int?, unit: PressureUnit): String = when {
+    mmHg == null -> "—"
+    unit == PressureUnit.MMHG -> "$mmHg мм рт. ст."
+    else -> "${(mmHg * 1.33322).roundToInt()} гПа"
 }
 
 private val WIND_DIR_RU = mapOf(
