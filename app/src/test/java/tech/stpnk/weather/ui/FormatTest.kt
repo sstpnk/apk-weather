@@ -19,6 +19,7 @@ class FormatTest {
         assertEquals("ЮВ", windDirectionRu("SOUTHEAST"))
         assertEquals("В", windDirectionRu("EAST"))
         assertEquals("СЗ", windDirectionRu("northwest"))
+        assertEquals("ЮЗ", windDirectionRu("SOUTH_WEST"))
         assertEquals(null, windDirectionRu(null))
     }
 

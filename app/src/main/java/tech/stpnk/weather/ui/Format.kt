@@ -52,7 +52,8 @@ private val WIND_DIR_RU = mapOf(
     "NORTHWEST" to "СЗ",
 )
 
-fun windDirectionRu(code: String?): String? = WIND_DIR_RU[code?.uppercase()]
+fun windDirectionRu(code: String?): String? =
+    WIND_DIR_RU[code?.uppercase()?.replace("_", "")]
 
 private val CONDITION_RU = mapOf(
     "CLEAR" to "Ясно",
