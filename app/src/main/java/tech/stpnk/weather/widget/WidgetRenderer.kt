@@ -98,9 +98,32 @@ object WidgetRenderer {
         manager.updateAppWidget(ComponentName(context, BigWeatherWidgetProvider::class.java), big)
     }
 
-    /** Быстрая отрисовка из кэша (onUpdate провайдеров — без сети). */
+    /** Быстрая отрисовка из кэша (onUpdate провайдеров — без сети); без кэша — заглушка. */
     fun renderFromCache(context: Context) {
         val data = tech.stpnk.weather.Graph.cache.read(tech.stpnk.weather.Graph.cities.selected().url)
-        if (data != null) render(context, data)
+        if (data != null) render(context, data) else renderEmpty(context)
+    }
+
+    /** Заглушка «нет данных»: показывается, пока воркер ни разу не отработал. */
+    fun renderEmpty(context: Context) {
+        val intent = Intent(context, MainActivity::class.java)
+        val pending = PendingIntent.getActivity(
+            context, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val small = RemoteViews(context.packageName, R.layout.widget_small).apply {
+            setOnClickPendingIntent(R.id.widget_root, pending)
+            setTextViewText(R.id.widget_temp, "—")
+            setTextViewText(R.id.widget_city, "Нет данных")
+        }
+        val manager = android.appwidget.AppWidgetManager.getInstance(context)
+        manager.updateAppWidget(ComponentName(context, SmallWeatherWidgetProvider::class.java), small)
+        val big = RemoteViews(context.packageName, R.layout.widget_big).apply {
+            setOnClickPendingIntent(R.id.widget_root, pending)
+            setTextViewText(R.id.widget_temp, "—")
+            setTextViewText(R.id.widget_datecity, "Нет данных")
+            setTextViewText(R.id.widget_summary, "Откройте приложение")
+        }
+        manager.updateAppWidget(ComponentName(context, BigWeatherWidgetProvider::class.java), big)
     }
 }

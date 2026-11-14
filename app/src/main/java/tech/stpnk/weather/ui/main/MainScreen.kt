@@ -28,11 +28,13 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -104,6 +106,7 @@ private fun ErrorScreen(message: String, onRetry: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ContentScreen(
     state: MainUiState.Content,
@@ -121,6 +124,11 @@ private fun ContentScreen(
         else listOf(Color(0xFF0B1626), Color(0xFF0A101C))
     )
 
+    PullToRefreshBox(
+        isRefreshing = state.refreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize(),
+    ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Column(
             Modifier.fillMaxWidth().background(headerBrush).statusBarsPadding().padding(bottom = 20.dp)
@@ -178,6 +186,7 @@ private fun ContentScreen(
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
                 modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 16.dp),
             )
+        }
         }
     }
 }
