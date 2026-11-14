@@ -82,7 +82,7 @@ class CitiesViewModel : ViewModel() {
             _state.update { it.copy(locationWorking = true, error = null) }
             val coords = runCatching { Graph.location.currentCoords() }.getOrNull()
             if (coords == null) {
-                _state.update { it.copy(locationWorking = false, error = "Не удалось определить координаты") }
+                _state.update { it.copy(locationWorking = false, error = "Не удалось определить координаты — включите геолокацию") }
                 return@launch
             }
             val name = runCatching { geo.reverse(coords.first, coords.second) }.getOrNull()
@@ -90,7 +90,10 @@ class CitiesViewModel : ViewModel() {
                 _state.update { it.copy(locationWorking = false, error = "Не удалось определить город") }
                 return@launch
             }
-            add(GeoHit(name = name, lat = coords.first, lon = coords.second))
+            // Берём ближайший к нашим координатам результат поиска — у него есть английское имя для слага
+            val hit = runCatching { geo.nearestFor(name, coords.first, coords.second) }.getOrNull()
+                ?: GeoHit(name = name, lat = coords.first, lon = coords.second)
+            add(hit)
             _state.update { it.copy(locationWorking = false) }
         }
     }

@@ -43,7 +43,7 @@ object Notifications {
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_SHADE)
             .setSmallIcon(weatherIconRes(data.current?.condition, null, data.current?.daytime != false))
-            .setContentTitle(WidgetRenderer.formatShadeTitle(data))
+            .setContentTitle(WidgetRenderer.shadeTitle(data))
             .setContentText(WidgetRenderer.shadeText(data))
             .setStyle(NotificationCompat.BigTextStyle().bigText(WidgetRenderer.shadeText(data)))
             .setContentIntent(pending)
@@ -76,6 +76,13 @@ object Notifications {
         runCatching {
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             manager?.notify(id, notification)
+        }
+    }
+
+    fun cancelShade(context: Context) {
+        runCatching {
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            manager?.cancel(SHADE_ID)
         }
     }
 }

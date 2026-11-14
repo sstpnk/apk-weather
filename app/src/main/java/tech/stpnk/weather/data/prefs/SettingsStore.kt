@@ -22,6 +22,14 @@ data class AppSettings(
     val windUnit: WindUnit = WindUnit.METERS_PER_SECOND,
     val pressureUnit: PressureUnit = PressureUnit.MMHG,
     val theme: ThemeMode = ThemeMode.SYSTEM,
+    // виджеты
+    val widgetTransparency: Int = 30,      // 0 — непрозрачно, 100 — почти прозрачный
+    val widgetMonochrome: Boolean = false, // чёрно-белые иконки
+    val widgetRefreshMinutes: Int = 60,    // интервал обновления
+    // уведомления
+    val dailyEnabled: Boolean = true,      // «Погода на сегодня»
+    val dailyHour: Int = 8,                // час отправки
+    val shadeEnabled: Boolean = true,      // виджет в шторке
 )
 
 interface KeyValueStore {

@@ -22,15 +22,20 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,11 +54,7 @@ fun SettingsScreen(settings: AppSettings, onChange: (AppSettings) -> Unit, onBac
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Назад",
-                    tint = MaterialTheme.colorScheme.primary,
-                )
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = MaterialTheme.colorScheme.primary)
             }
             Text("Настройки", fontSize = 20.sp, modifier = Modifier.padding(start = 4.dp))
         }
@@ -78,13 +79,39 @@ fun SettingsScreen(settings: AppSettings, onChange: (AppSettings) -> Unit, onBac
             RadioRow("Как в системе", settings.theme == ThemeMode.SYSTEM) { onChange(settings.copy(theme = ThemeMode.SYSTEM)) }
         }
 
+        SectionLabel("Уведомления")
+        SettingsGroup {
+            SwitchRow("Погода на сегодня", settings.dailyEnabled) {
+                onChange(settings.copy(dailyEnabled = it))
+            }
+            if (settings.dailyEnabled) {
+                StepperRow("Время", "${settings.dailyHour}:00") { delta ->
+                    onChange(settings.copy(dailyHour = (settings.dailyHour + delta + 24) % 24))
+                }
+            }
+            SwitchRow("Виджет в шторке", settings.shadeEnabled) {
+                onChange(settings.copy(shadeEnabled = it))
+            }
+        }
+
+        SectionLabel("Виджеты")
+        SettingsGroup {
+            SliderRow("Прозрачность", settings.widgetTransparency) { value ->
+                onChange(settings.copy(widgetTransparency = value))
+            }
+            SwitchRow("Чёрно-белые иконки", settings.widgetMonochrome) {
+                onChange(settings.copy(widgetMonochrome = it))
+            }
+            SegmentedRow(
+                "Обновление",
+                listOf("30 мин", "60 мин", "2 ч"),
+                when (settings.widgetRefreshMinutes) { 30 -> 0; 60 -> 1; else -> 2 },
+            ) { i ->
+                onChange(settings.copy(widgetRefreshMinutes = if (i == 0) 30 else if (i == 1) 60 else 120))
+            }
+        }
+
         Spacer(Modifier.height(24.dp))
-        Text(
-            stringResource(R.string.attribution),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
-            modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
-        )
     }
 }
 
@@ -152,5 +179,68 @@ private fun RadioRow(label: String, selected: Boolean, onSelect: () -> Unit) {
     ) {
         Text(label, fontSize = 16.sp, modifier = Modifier.weight(1f))
         RadioButton(selected = selected, onClick = onSelect, colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary))
+    }
+}
+
+@Composable
+private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, fontSize = 16.sp, modifier = Modifier.weight(1f))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary),
+        )
+    }
+}
+
+@Composable
+private fun SliderRow(label: String, initialPercent: Int, onValue: (Int) -> Unit) {
+    var value by remember { mutableFloatStateOf(initialPercent / 100f) }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, fontSize = 16.sp)
+            Text("${(value * 100).toInt()}%", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+        }
+        Slider(
+            value = value,
+            onValueChange = { v ->
+                value = v
+                onValue((v * 100).toInt())
+            },
+            valueRange = 0f..1f,
+            colors = androidx.compose.material3.SliderDefaults.colors(activeTrackColor = MaterialTheme.colorScheme.primary),
+        )
+    }
+}
+
+@Composable
+private fun StepperRow(label: String, value: String, onStep: (Int) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, fontSize = 16.sp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                    .clickable { onStep(-1) }
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+            ) { Text("−", fontSize = 16.sp) }
+            Text(value, fontSize = 16.sp, modifier = Modifier.padding(horizontal = 14.dp))
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                    .clickable { onStep(+1) }
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+            ) { Text("+", fontSize = 16.sp) }
+        }
     }
 }

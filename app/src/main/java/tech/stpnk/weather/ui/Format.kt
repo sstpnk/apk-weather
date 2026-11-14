@@ -1,6 +1,7 @@
 package tech.stpnk.weather.ui
 
 import tech.stpnk.weather.R
+import tech.stpnk.weather.domain.model.WeatherData
 import tech.stpnk.weather.data.prefs.PressureUnit
 import tech.stpnk.weather.data.prefs.TempUnit
 import tech.stpnk.weather.data.prefs.WindUnit
@@ -105,6 +106,20 @@ fun weatherIconRes(condition: String?, conditionText: String?, daytime: Boolean?
         text.contains("ясно") -> if (isDay) R.drawable.ic_w_clear_day else R.drawable.ic_w_clear_night
         else -> R.drawable.ic_w_cloudy
     }
+}
+
+/** Диапазон на сегодня по часам: у «сегодня» на странице нет частей день/ночь. */
+fun todayDayNight(data: WeatherData): Pair<Int, Int>? {
+    val temps = mutableListOf<Int>()
+    var prev: Int? = null
+    for (hour in data.hourly) {
+        val h = hour.time.substringBefore(':').toIntOrNull() ?: continue
+        if (prev != null && h < prev) break // перешли на следующие сутки
+        prev = h
+        hour.temperatureC?.let { temps.add(it) }
+    }
+    if (temps.isEmpty()) return null
+    return temps.max() to temps.min()
 }
 
 private val PRECIP_KEYWORDS = listOf("дожд", "ливень", "гроз", "снег", "морос", "град", "осадк")

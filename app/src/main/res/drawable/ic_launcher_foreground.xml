@@ -4,11 +4,21 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Солнце: диск + четыре луча (временная иконка, заменим в этапе 8). -->
+    <!-- Солнце с лучами -->
     <path
-        android:fillColor="#FFB300"
-        android:pathData="M54,54m-15,0a15,15 0,1 1,30 0a15,15 0,1 1,-30 0" />
+        android:fillColor="#FFC94D"
+        android:pathData="M64,39a14,14 0 1,0 0.001,0z" />
     <path
-        android:fillColor="#FFB300"
-        android:pathData="M52,24h4v11h-4zM52,73h4v11h-4zM24,52h11v4H24zM73,52h11v4H73z" />
+        android:strokeColor="#FFC94D"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:pathData="M64,17v6M64,55v6M42,39h6M80,39h6M48.6,23.6l4.2,4.2M75.2,50.2l4.2,4.2M79.4,23.6l-4.2,4.2M52.8,50.2l-4.2,4.2" />
+    <!-- Облако поверх солнца -->
+    <path
+        android:fillColor="#F4F7FB"
+        android:pathData="M31,76h38a12,12 0 0,0 0.7,-24 16,16 0 0,0 -30.6,-3.6A10,10 0 0,0 31,76z" />
+    <!-- Подсветка облака снизу -->
+    <path
+        android:fillColor="#DDE6F2"
+        android:pathData="M31,76h38a12,12 0 0,0 4,-23.3 16,16 0 0,1 -42.6,4A10,10 0 0,0 31,76z" />
 </vector>

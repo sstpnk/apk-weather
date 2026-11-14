@@ -35,10 +35,12 @@ class CitiesStore(private val kv: KeyValueStore) {
         if (list.none { it.url == city.url }) save(list + city)
     }
 
+    /** Удалять можно любой город; выбранный при удалении переключается на первый оставшийся. */
     fun remove(url: String) {
-        val list = cities().filterNot { it.url == url }
-        save(list.ifEmpty { defaultList() })
-        if (selected().url == url) select(cities().first().url)
+        val remaining = cities().filterNot { it.url == url }
+        val saved = remaining.ifEmpty { defaultList() }
+        save(saved)
+        if (selected().url == url) select(saved.first().url)
     }
 
     private fun save(list: List<CityEntry>) {

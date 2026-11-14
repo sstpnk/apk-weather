@@ -1,11 +1,14 @@
 package tech.stpnk.weather.ui.main
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -58,6 +61,7 @@ import tech.stpnk.weather.ui.formatPressure
 import tech.stpnk.weather.ui.formatTemp
 import tech.stpnk.weather.ui.formatWind
 import tech.stpnk.weather.ui.precipitationOutlook
+import tech.stpnk.weather.ui.todayDayNight
 import tech.stpnk.weather.ui.weatherIconRes
 import tech.stpnk.weather.ui.windDirectionRu
 
@@ -129,64 +133,104 @@ private fun ContentScreen(
         onRefresh = onRefresh,
         modifier = Modifier.fillMaxSize(),
     ) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Column(
-            Modifier.fillMaxWidth().background(headerBrush).statusBarsPadding().padding(bottom = 20.dp)
-        ) {
-            TopBar(
-                city = data.place?.city,
-                district = data.place?.district ?: data.place?.province,
-                onOpenCities = onOpenCities,
-                onOpenSettings = onOpenSettings,
-                onRefresh = onRefresh,
-            )
-            HeroBlock(current = current, isDay = isDay, settings = settings)
-            Spacer(Modifier.height(18.dp))
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                MetricColumn(current, settings)
-                HourlyStrip(hourly = data.hourly, isDay = isDay, settings = settings, modifier = Modifier.weight(1f))
-            }
-        }
-
-        Column(Modifier.padding(horizontal = 16.dp)) {
-            val outlook = precipitationOutlook(data.hourly.mapNotNull { it.summary })
-            if (outlook != null) {
-                Spacer(Modifier.height(12.dp))
-                NowcastBanner(outlook)
-            }
-            Spacer(Modifier.height(10.dp))
-            Button(
-                onClick = onOpenMap,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                ),
-                shape = RoundedCornerShape(14.dp),
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            Column(
+                Modifier.fillMaxWidth().background(headerBrush).statusBarsPadding().padding(bottom = 18.dp)
             ) {
-                Icon(Icons.Filled.Place, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Показать на карте")
+                TopBar(
+                    city = data.place?.city,
+                    district = data.place?.district ?: data.place?.province,
+                    onOpenCities = onOpenCities,
+                    onOpenSettings = onOpenSettings,
+                    onRefresh = onRefresh,
+                )
+                // Слева — текущая погода, справа — метрики; высоты выровнены
+                Row(
+                    Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Column(
+                        Modifier.weight(1f).fillMaxHeight(),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                formatTemp(current?.temperatureC, settings.tempUnit),
+                                color = Color.White,
+                                fontSize = 64.sp,
+                                fontWeight = FontWeight.Light,
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Icon(
+                                painterResource(weatherIconRes(current?.condition, null, isDay)),
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp),
+                                tint = Color.Unspecified,
+                            )
+                        }
+                        Text(
+                            conditionTextRu(current?.condition) ?: "—",
+                            color = Color.White,
+                            fontSize = 17.sp,
+                        )
+                        Text(
+                            "Ощущается как: ${formatTemp(current?.feelsLikeC, settings.tempUnit)}",
+                            color = Color.White.copy(alpha = 0.75f),
+                            fontSize = 13.sp,
+                        )
+                    }
+                    MetricColumn(current, settings, Modifier.width(170.dp).fillMaxHeight())
+                }
+                Spacer(Modifier.height(14.dp))
+                HourlyStrip(hourly = data.hourly, isDay = isDay, settings = settings)
             }
 
-            Spacer(Modifier.height(20.dp))
-            Text(
-                stringResource(R.string.section_days),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(Modifier.height(10.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                data.days.forEach { day -> DayRow(day, settings) }
+            Column(Modifier.padding(horizontal = 16.dp)) {
+                val outlook = precipitationOutlook(data.hourly.mapNotNull { it.summary })
+                if (outlook != null) {
+                    Spacer(Modifier.height(12.dp))
+                    NowcastBanner(text = outlook, onClick = onOpenMap)
+                }
+                Spacer(Modifier.height(10.dp))
+                Button(
+                    onClick = onOpenMap,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                ) {
+                    Icon(Icons.Filled.Place, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.show_on_map))
+                }
+
+                Spacer(Modifier.height(20.dp))
+                Text(
+                    stringResource(R.string.section_days),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(Modifier.height(10.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val todayRange = todayDayNight(data)
+                    data.days.forEachIndexed { index, day ->
+                        val fallbackDay = if (index == 0) todayRange?.first else null
+                        val fallbackNight = if (index == 0) todayRange?.second else null
+                        DayRow(day, settings, fallbackDay, fallbackNight)
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
+                if (state.stale) {
+                    Text(
+                        stringResource(R.string.stale_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
+                    )
+                }
+                Spacer(Modifier.navigationBarsPadding().height(14.dp))
             }
-            Spacer(Modifier.height(20.dp))
-            Text(
-                text = stringResource(R.string.attribution) + if (state.stale) " · ${stringResource(R.string.stale_note)}" else "",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
-                modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 16.dp),
-            )
-        }
         }
     }
 }
@@ -227,46 +271,15 @@ private fun TopBar(
 }
 
 @Composable
-private fun HeroBlock(current: CurrentWeather?, isDay: Boolean, settings: AppSettings) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            formatTemp(current?.temperatureC, settings.tempUnit),
-            color = Color.White,
-            fontSize = 76.sp,
-            fontWeight = FontWeight.Light,
-        )
-        Spacer(Modifier.width(12.dp))
-        Icon(
-            painterResource(weatherIconRes(current?.condition, null, isDay)),
-            contentDescription = null,
-            modifier = Modifier.size(56.dp),
-            tint = Color.Unspecified,
-        )
-    }
-    Text(
-        conditionTextRu(current?.condition) ?: "—",
-        Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-        color = Color.White,
-        fontSize = 18.sp,
-    )
-    Text(
-        "Ощущается как: ${formatTemp(current?.feelsLikeC, settings.tempUnit)}",
-        Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-        color = Color.White.copy(alpha = 0.75f),
-        fontSize = 14.sp,
-    )
-}
-
-@Composable
-private fun MetricColumn(current: CurrentWeather?, settings: AppSettings) {
+private fun MetricColumn(current: CurrentWeather?, settings: AppSettings, modifier: Modifier = Modifier) {
     val wind = buildString {
         append(formatWind(current?.windSpeedMs, settings.windUnit))
         windDirectionRu(current?.windDirection)?.let { dir -> if (isNotEmpty()) append(", $dir") }
     }
-    Column(Modifier.width(150.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+    Column(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).padding(6.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
         MetricRow("Ветер", wind)
         MetricRow("Давление", formatPressure(current?.pressureMmHg, settings.pressureUnit))
         MetricRow("Влажность", current?.humidity?.let { "$it%" } ?: "—")
@@ -276,30 +289,33 @@ private fun MetricColumn(current: CurrentWeather?, settings: AppSettings) {
 
 @Composable
 private fun MetricRow(label: String, value: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp, modifier = Modifier.width(66.dp))
-        Text(value, color = Color.White, fontSize = 14.sp)
+    Column {
+        Text(label, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+        Text(value, color = Color.White, fontSize = 15.sp)
     }
 }
 
 @Composable
-private fun HourlyStrip(hourly: List<HourForecast>, isDay: Boolean, settings: AppSettings, modifier: Modifier = Modifier) {
-    LazyRow(modifier, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+private fun HourlyStrip(hourly: List<HourForecast>, isDay: Boolean, settings: AppSettings) {
+    LazyRow(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
         items(hourly) { hour ->
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(hour.time, color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                Spacer(Modifier.height(4.dp))
+                Text(hour.time, color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp)
+                Spacer(Modifier.height(6.dp))
                 Icon(
                     painterResource(weatherIconRes(null, hourCondition(hour), isDay)),
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(34.dp),
                     tint = Color.Unspecified,
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
                     formatTemp(hour.temperatureC, settings.tempUnit),
                     color = Color.White,
-                    fontSize = 14.sp,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
             }
@@ -315,11 +331,11 @@ private fun hourCondition(hour: HourForecast): String? {
 }
 
 @Composable
-private fun NowcastBanner(text: String) {
+private fun NowcastBanner(text: String, onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
     ) {
         Row(
             Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -336,7 +352,12 @@ private fun NowcastBanner(text: String) {
 }
 
 @Composable
-private fun DayRow(day: DayForecast, settings: AppSettings) {
+private fun DayRow(
+    day: DayForecast,
+    settings: AppSettings,
+    fallbackDayTemp: Int?,
+    fallbackNightTemp: Int?,
+) {
     val dayPart = day.parts["d"]
     val nightPart = day.parts["n"]
     val (weekday, date) = splitLabel(day.label)
@@ -369,9 +390,9 @@ private fun DayRow(day: DayForecast, settings: AppSettings) {
                 tint = Color.Unspecified,
             )
             Spacer(Modifier.width(20.dp))
-            TempColumn("День", dayPart?.temperatureC, settings)
+            TempColumn("День", dayPart?.temperatureC ?: fallbackDayTemp, settings)
             Spacer(Modifier.width(14.dp))
-            TempColumn("Ночь", nightPart?.temperatureC, settings)
+            TempColumn("Ночь", nightPart?.temperatureC ?: fallbackNightTemp, settings)
         }
     }
 }

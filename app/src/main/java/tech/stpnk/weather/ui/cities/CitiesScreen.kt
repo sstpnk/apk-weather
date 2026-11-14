@@ -180,11 +180,11 @@ private fun CityRow(city: CityEntry, selected: Boolean, onSelect: () -> Unit, on
             Icon(Icons.Filled.Check, contentDescription = "Выбран", tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(12.dp))
         }
-        IconButton(onClick = onRemove, enabled = !selected) {
+        IconButton(onClick = onRemove) {
             Icon(
                 Icons.Filled.Close,
                 contentDescription = "Удалить",
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (selected) 0.25f else 0.55f),
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (selected) 0.55f else 0.55f),
             )
         }
     }

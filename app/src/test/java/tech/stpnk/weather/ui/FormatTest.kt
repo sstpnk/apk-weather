@@ -3,6 +3,8 @@ package tech.stpnk.weather.ui
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import tech.stpnk.weather.domain.model.HourForecast
+import tech.stpnk.weather.domain.model.WeatherData
 
 class FormatTest {
 
@@ -35,6 +37,20 @@ class FormatTest {
         assertEquals("В ближайшие 2 часа осадков не ожидается", precipitationOutlook(listOf("12:00: +9°, ясно, Ощущается как +5°.")))
         assertEquals("В ближайшие часы возможны осадки", precipitationOutlook(listOf("12:00: +9°, дождь, Ощущается как +5°.")))
         assertEquals(null, precipitationOutlook(emptyList()))
+    }
+
+    @Test
+    fun `диапазон на сегодня по часам`() {
+        val data = WeatherData(
+            hourly = listOf(
+                HourForecast("13:00", 4),
+                HourForecast("14:00", 5),
+                HourForecast("23:00", 2),
+                HourForecast("00:00", 3),
+                HourForecast("01:00", 1),
+            ),
+        )
+        assertEquals(5 to 2, todayDayNight(data))
     }
 
     @Test

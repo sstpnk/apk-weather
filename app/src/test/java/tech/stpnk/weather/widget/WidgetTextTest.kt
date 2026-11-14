@@ -52,7 +52,7 @@ class WidgetTextTest {
     @Test
     fun `текст виджета в шторке`() {
         assertEquals("Ощущается как: +8° · Ветер 3 м/с, В · Москва", WidgetRenderer.shadeText(data()))
-        assertEquals("+11° · Ясно", WidgetRenderer.formatShadeTitle(data()))
+        assertEquals("+11° · Ясно", WidgetRenderer.shadeTitle(data()))
     }
 
     @Test

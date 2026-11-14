@@ -39,15 +39,21 @@ private data class NominatimResponse(val name: String? = null, val display_name:
 /**
  * Геокодинг: поиск городов (Open-Meteo, без ключа), реверс координат (Nominatim),
  * подбор слага Яндекс.Погоды с проверкой живой страницы.
+ *
+ * Особенность источника: на русском запросе language=en отдаёт пусто, поэтому en-проход
+ * идёт по транслитерированному запросу, а результаты склеиваются по координатам
+ * (см. docs/05-source-yandex-web.md).
  */
 class GeoSearchSource(private val client: OkHttpClient) {
 
     private val json = Json { ignoreUnknownKeys = true }
 
     suspend fun search(query: String): List<GeoHit> = withContext(Dispatchers.IO) {
-        val ru = geocode(query, "ru")
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return@withContext emptyList()
+        val ru = geocode(trimmed, "ru")
         if (ru.isEmpty()) return@withContext emptyList()
-        val en = geocode(query, "en").associateBy { "${it.latitude},${it.longitude}" }
+        val en = geocode(transliterate(trimmed), "en").associateBy { coordKey(it.latitude, it.longitude) }
         ru.map { hit ->
             GeoHit(
                 name = hit.name,
@@ -55,9 +61,15 @@ class GeoSearchSource(private val client: OkHttpClient) {
                 country = hit.country,
                 lat = hit.latitude,
                 lon = hit.longitude,
-                englishName = en["${hit.latitude},${hit.longitude}"]?.name,
+                englishName = en[coordKey(hit.latitude, hit.longitude)]?.name,
             )
         }
+    }
+
+    /** Ближайший к координатам результат поиска по имени — для «Моего местоположения». */
+    suspend fun nearestFor(name: String, lat: Double, lon: Double): GeoHit? {
+        val hits = search(name)
+        return hits.minByOrNull { h -> (h.lat - lat) * (h.lat - lat) + (h.lon - lon) * (h.lon - lon) }
     }
 
     private fun geocode(query: String, language: String): List<OpenMeteoHit> {
@@ -95,7 +107,7 @@ class GeoSearchSource(private val client: OkHttpClient) {
 
     private fun verify(url: String): Boolean = runCatching {
         client.newCall(
-            Request.Builder().url(url).header("User-Agent", UA).build()
+            Request.Builder().url(url).header("User-Agent", UA).header("Accept-Language", "ru-RU,ru;q=0.9").build()
         ).execute().use { it.isSuccessful }
     }.getOrDefault(false)
 
@@ -108,10 +120,13 @@ class GeoSearchSource(private val client: OkHttpClient) {
         }
     }.getOrNull()
 
+    private fun coordKey(lat: Double, lon: Double): String = "%.4f,%.4f".format(lat, lon)
+
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
 
     private companion object {
-        const val UA = "apk-weather/0.1 (personal project; https://github.com/sstpnk/apk-weather)"
+        const val UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+            "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 apk-weather/0.1"
     }
 }
 
