@@ -26,45 +26,23 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
 
-/**
- * Превью использует тот же MapView, что и полный экран карты. Оно не зависит
- * от статического API и не выполняет сеть на main thread.
- */
+/** Превью той же интерактивной карты Яндекс Погоды, что открывается на весь экран. */
 @Composable
 fun MapPreviewCard(
-    cityName: String,
+    cityUrl: String,
     lat: Double,
     lon: Double,
     banner: String?,
     onClick: () -> Unit,
 ) {
     val context = LocalContext.current
-    val mapView = remember(context, lat, lon) {
-        configureOsmdroid(context)
-        MapView(context).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
-            setMultiTouchControls(false)
-            controller.setZoom(8.0)
-            controller.setCenter(GeoPoint(lat, lon))
-            overlays.add(Marker(this).apply {
-                position = GeoPoint(lat, lon)
-                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                icon = pinDrawable(context)
-                title = cityName
-            })
-        }
+    val webView = remember(context, cityUrl, lat, lon) {
+        createYandexWeatherMap(context, cityUrl, lat, lon)
     }
-    DisposableEffect(mapView) {
-        mapView.onResume()
-        onDispose {
-            mapView.onPause()
-            mapView.onDetach()
-        }
+    DisposableEffect(webView) {
+        webView.onResume()
+        onDispose { disposeYandexWeatherMap(webView) }
     }
 
     Box(
@@ -72,11 +50,10 @@ fun MapPreviewCard(
             .fillMaxWidth()
             .height(190.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
-        Box(Modifier.matchParentSize().background(Color(0x330A1018)))
-        Box(Modifier.matchParentSize().clickable(onClick = onClick))
+        AndroidView(factory = { webView }, modifier = Modifier.fillMaxSize())
+        Box(Modifier.matchParentSize().background(Color(0x1A0A1018)).clickable(onClick = onClick))
         if (banner != null) {
             Row(
                 Modifier
@@ -92,7 +69,7 @@ fun MapPreviewCard(
                 Text(banner, color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
                 Icon(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
+                    contentDescription = "Открыть карту",
                     tint = Color.White,
                     modifier = Modifier.size(20.dp),
                 )

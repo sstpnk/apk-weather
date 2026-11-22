@@ -204,7 +204,7 @@ private fun ContentScreen(
             Column(Modifier.padding(horizontal = 16.dp)) {
                 Spacer(Modifier.height(12.dp))
                 MapPreviewCard(
-                    cityName = data.place?.city ?: city.name,
+                    cityUrl = city.url,
                     lat = city.lat ?: 55.7522,
                     lon = city.lon ?: 37.6156,
                     banner = precipitationOutlook(data.hourly.mapNotNull { it.summary }),
