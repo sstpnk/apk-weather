@@ -32,10 +32,12 @@ class SettingsActivity : ComponentActivity() {
                     settings = settings,
                     onChange = { new ->
                         val themeChanged = new.theme != settings.theme
+                        val providerChanged = new.weatherProvider != settings.weatherProvider
                         store.save(new)
                         settings = new
                         // расписание будильников (интервал, время уведомлений) могло измениться
                         AlarmScheduler.scheduleAll(this)
+                        if (providerChanged) AlarmScheduler.cancelSourceRetry(this)
                         if (themeChanged) recreate()
                     },
                     onBack = { finish() },

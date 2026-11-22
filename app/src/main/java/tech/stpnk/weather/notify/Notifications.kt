@@ -9,6 +9,8 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import tech.stpnk.weather.MainActivity
 import tech.stpnk.weather.R
+import tech.stpnk.weather.data.prefs.WeatherProvider
+import tech.stpnk.weather.data.repo.SourceChange
 import tech.stpnk.weather.domain.model.WeatherData
 import tech.stpnk.weather.ui.weatherIconRes
 import tech.stpnk.weather.widget.WidgetRenderer
@@ -18,9 +20,11 @@ object Notifications {
 
     const val CHANNEL_SHADE = "weather_shade"
     const val CHANNEL_DAILY = "weather_daily"
+    const val CHANNEL_SOURCE = "weather_source"
     private const val SHADE_ID = 1001
     private const val DAILY_ID = 1002
     private const val EVENING_ID = 1003
+    private const val SOURCE_ID = 1004
 
     fun ensure(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -32,6 +36,9 @@ object Notifications {
         )
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_DAILY, "Погода на сегодня", NotificationManager.IMPORTANCE_DEFAULT)
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL_SOURCE, "Источник погоды", NotificationManager.IMPORTANCE_DEFAULT)
         )
     }
 
@@ -89,7 +96,32 @@ object Notifications {
             .setAutoCancel(true)
             .build()
         notify(context, EVENING_ID, notification)
- }
+    }
+
+    /** Отдельное уведомление: приложение сменило источник после серии повторов. */
+    fun showSourceChanged(context: Context, change: SourceChange) {
+        val intent = Intent(context, MainActivity::class.java)
+        val pending = PendingIntent.getActivity(
+            context, 4, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val text = "${providerName(change.from)} недоступен. Используется ${providerName(change.to)}."
+        val notification = NotificationCompat.Builder(context, CHANNEL_SOURCE)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle("Источник погоды изменён")
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentIntent(pending)
+            .setAutoCancel(true)
+            .build()
+        notify(context, SOURCE_ID, notification)
+    }
+
+    private fun providerName(provider: WeatherProvider): String = when (provider) {
+        WeatherProvider.YANDEX -> "Яндекс Погода"
+        WeatherProvider.OPEN_METEO -> "Open-Meteo"
+        WeatherProvider.MET_NORWAY -> "MET Norway"
+    }
 
     private fun notify(context: Context, id: Int, notification: android.app.Notification) {
         runCatching {

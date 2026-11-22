@@ -4,12 +4,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import tech.stpnk.weather.data.cities.CityEntry
 import tech.stpnk.weather.domain.model.WeatherData
 import java.io.IOException
 
 /** Источник данных: веб-страница pogoda.yandex.ru (RSC/flight). */
 interface WeatherSource {
-    suspend fun fetch(url: String): WeatherData
+    suspend fun fetch(city: CityEntry): WeatherData
 }
 
 class YandexWebSource(
@@ -17,7 +18,8 @@ class YandexWebSource(
     private val parser: FlightParser = FlightParser(),
 ) : WeatherSource {
 
-    override suspend fun fetch(url: String): WeatherData = withContext(Dispatchers.IO) {
+    override suspend fun fetch(city: CityEntry): WeatherData = withContext(Dispatchers.IO) {
+        val url = city.url
         val request = Request.Builder()
             .url(url)
             .header("User-Agent", USER_AGENT)

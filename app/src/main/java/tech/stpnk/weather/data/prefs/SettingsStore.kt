@@ -17,11 +17,15 @@ enum class PressureUnit { MMHG, HPA }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 @Serializable
+enum class WeatherProvider { YANDEX, OPEN_METEO, MET_NORWAY }
+
+@Serializable
 data class AppSettings(
     val tempUnit: TempUnit = TempUnit.CELSIUS,
     val windUnit: WindUnit = WindUnit.METERS_PER_SECOND,
     val pressureUnit: PressureUnit = PressureUnit.MMHG,
     val theme: ThemeMode = ThemeMode.SYSTEM,
+    val weatherProvider: WeatherProvider = WeatherProvider.YANDEX,
     // виджеты
     val widgetTransparency: Int = 30,      // 0 — непрозрачно, 100 — почти прозрачный
     val widgetMonochrome: Boolean = false, // чёрно-белые иконки

@@ -12,7 +12,10 @@ import tech.stpnk.weather.data.prefs.KeyValueStore
 import tech.stpnk.weather.data.prefs.SettingsStore
 import tech.stpnk.weather.data.prefs.SharedPrefsStore
 import tech.stpnk.weather.data.repo.WeatherRepository
+import tech.stpnk.weather.data.yandex.MetNorwaySource
+import tech.stpnk.weather.data.yandex.OpenMeteoSource
 import tech.stpnk.weather.data.yandex.YandexWebSource
+import tech.stpnk.weather.data.repo.SourceFailoverStore
 import tech.stpnk.weather.notify.Notifications
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -44,15 +47,32 @@ object Graph {
             .build()
     }
 
-    val source: YandexWebSource by lazy { YandexWebSource(http) }
+    val sources by lazy {
+        mapOf(
+            tech.stpnk.weather.data.prefs.WeatherProvider.YANDEX to YandexWebSource(http),
+            tech.stpnk.weather.data.prefs.WeatherProvider.OPEN_METEO to OpenMeteoSource(http),
+            tech.stpnk.weather.data.prefs.WeatherProvider.MET_NORWAY to MetNorwaySource(http),
+        )
+    }
 
     val cache: WeatherCache by lazy { WeatherCache(File(ctx().filesDir, "weather-cache")) }
-
-    val repository: WeatherRepository by lazy { WeatherRepository(source, cache) }
 
     val kv: KeyValueStore by lazy { SharedPrefsStore(ctx()) }
 
     val settings: SettingsStore by lazy { SettingsStore(kv) }
+
+    val failover: SourceFailoverStore by lazy { SourceFailoverStore(kv) }
+
+    val repository: WeatherRepository by lazy {
+        WeatherRepository(
+            sources = sources,
+            cache = cache,
+            failover = failover,
+            onRetryScheduled = { AlarmScheduler.scheduleSourceRetry(ctx(), it) },
+            onRetryCancelled = { AlarmScheduler.cancelSourceRetry(ctx()) },
+            onSourceChanged = { Notifications.showSourceChanged(ctx(), it) },
+        )
+    }
 
     val cities: CitiesStore by lazy { CitiesStore(kv) }
 

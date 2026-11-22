@@ -5,6 +5,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import tech.stpnk.weather.data.cache.WeatherCache
+import tech.stpnk.weather.data.cities.CityEntry
+import tech.stpnk.weather.data.prefs.KeyValueStore
+import tech.stpnk.weather.data.prefs.WeatherProvider
 import tech.stpnk.weather.data.yandex.WeatherSource
 import tech.stpnk.weather.domain.model.CurrentWeather
 import tech.stpnk.weather.domain.model.WeatherData
@@ -14,27 +17,39 @@ import java.nio.file.Files
 class WeatherRepositoryTest {
 
     private val dir = Files.createTempDirectory("weather-cache").toFile()
-    private val url = "https://yandex.ru/pogoda/ru/moscow"
+    private val city = CityEntry("Москва", "https://yandex.ru/pogoda/ru/moscow", 55.7522, 37.6156)
 
     private fun data(temp: Int) = WeatherData(
         current = CurrentWeather(temperatureC = temp),
         fetchedAt = System.currentTimeMillis(),
-        sourceUrl = url,
+        sourceUrl = city.url,
     )
 
     private class FakeSource(var result: () -> WeatherData) : WeatherSource {
         var calls = 0
-        override suspend fun fetch(url: String): WeatherData {
+        override suspend fun fetch(city: CityEntry): WeatherData {
             calls++
             return result()
         }
     }
 
+    private fun repository(source: WeatherSource, cache: WeatherCache) = WeatherRepository(
+        sources = WeatherProvider.entries.associateWith { source },
+        cache = cache,
+        failover = SourceFailoverStore(FakeKeyValueStore()),
+    )
+
+    private class FakeKeyValueStore : KeyValueStore {
+        private val values = mutableMapOf<String, String>()
+        override fun getString(key: String): String? = values[key]
+        override fun putString(key: String, value: String) { values[key] = value }
+    }
+
     @Test
     fun `первый запрос идёт в сеть и пишет кэш`() = runBlocking {
         val source = FakeSource { data(10) }
-        val repo = WeatherRepository(source, WeatherCache(dir))
-        val outcome = repo.load(url)
+        val repo = repository(source, WeatherCache(dir))
+        val outcome = repo.load(city, WeatherProvider.YANDEX)
         assertEquals(1, source.calls)
         assertTrue(outcome is LoadOutcome.Fresh)
         assertEquals(10, (outcome as LoadOutcome.Fresh).data.current?.temperatureC)
@@ -43,9 +58,9 @@ class WeatherRepositoryTest {
     @Test
     fun `свежий кэш не дёргает сеть`() = runBlocking {
         val source = FakeSource { data(11) }
-        val repo = WeatherRepository(source, WeatherCache(dir))
-        repo.load(url)
-        val second = repo.load(url)
+        val repo = repository(source, WeatherCache(dir))
+        repo.load(city, WeatherProvider.YANDEX)
+        val second = repo.load(city, WeatherProvider.YANDEX)
         assertEquals(1, source.calls)
         assertTrue(second is LoadOutcome.Fresh)
     }
@@ -53,19 +68,19 @@ class WeatherRepositoryTest {
     @Test
     fun `force игнорирует кэш`() = runBlocking {
         val source = FakeSource { data(12) }
-        val repo = WeatherRepository(source, WeatherCache(dir))
-        repo.load(url)
-        repo.load(url, force = true)
+        val repo = repository(source, WeatherCache(dir))
+        repo.load(city, WeatherProvider.YANDEX)
+        repo.load(city, WeatherProvider.YANDEX, force = true)
         assertEquals(2, source.calls)
     }
 
     @Test
     fun `ошибка сети возвращает устаревший кэш`() = runBlocking {
         val source = FakeSource { data(13) }
-        val repo = WeatherRepository(source, WeatherCache(dir))
-        repo.load(url)
+        val repo = repository(source, WeatherCache(dir))
+        repo.load(city, WeatherProvider.YANDEX)
         source.result = { throw IOException("нет сети") }
-        val outcome = repo.load(url, force = true)
+        val outcome = repo.load(city, WeatherProvider.YANDEX, force = true)
         assertTrue("ожидался Stale", outcome is LoadOutcome.Stale)
         assertEquals(13, (outcome as LoadOutcome.Stale).data.current?.temperatureC)
     }
@@ -74,8 +89,8 @@ class WeatherRepositoryTest {
     fun `ошибка без кэша — Failed`() = runBlocking {
         val emptyDir = Files.createTempDirectory("weather-cache-empty").toFile()
         val source = FakeSource { throw IOException("нет сети") }
-        val repo = WeatherRepository(source, WeatherCache(emptyDir))
-        val outcome = repo.load(url)
+        val repo = repository(source, WeatherCache(emptyDir))
+        val outcome = repo.load(city, WeatherProvider.YANDEX)
         assertTrue("ожидался Failed", outcome is LoadOutcome.Failed)
     }
 }

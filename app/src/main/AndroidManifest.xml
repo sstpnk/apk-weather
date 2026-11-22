@@ -87,6 +87,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".bg.SourceRetryReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".bg.BootReceiver"
             android:exported="false">
             <intent-filter>

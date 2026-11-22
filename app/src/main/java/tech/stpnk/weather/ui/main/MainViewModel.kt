@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import tech.stpnk.weather.Graph
 import tech.stpnk.weather.data.repo.LoadOutcome
+import tech.stpnk.weather.data.prefs.WeatherProvider
 import tech.stpnk.weather.domain.model.WeatherData
 
 sealed interface MainUiState {
@@ -25,6 +26,7 @@ class MainViewModel : ViewModel() {
     private val repository = Graph.repository
     private val cities = Graph.cities
     private var loadedUrl: String? = null
+    private var loadedProvider: WeatherProvider? = null
 
     private val _state = MutableStateFlow<MainUiState>(MainUiState.Loading)
     val state: StateFlow<MainUiState> = _state
@@ -34,8 +36,10 @@ class MainViewModel : ViewModel() {
     }
 
     fun refresh(force: Boolean = false) {
-        val url = cities.selected().url
-        loadedUrl = url
+        val city = cities.selected()
+        val provider = Graph.settings.load().weatherProvider
+        loadedUrl = city.url
+        loadedProvider = provider
         val previous = _state.value
         _state.value = if (previous is MainUiState.Content) {
             previous.copy(refreshing = true)
@@ -43,7 +47,7 @@ class MainViewModel : ViewModel() {
             MainUiState.Loading
         }
         viewModelScope.launch {
-            _state.value = when (val outcome = repository.load(url, force = force)) {
+            _state.value = when (val outcome = repository.load(city, provider, force = force)) {
                 is LoadOutcome.Fresh -> MainUiState.Content(outcome.data)
                 is LoadOutcome.Stale -> MainUiState.Content(outcome.data, stale = true)
                 is LoadOutcome.Failed -> MainUiState.Error(outcome.error.message ?: "Не удалось загрузить прогноз")
@@ -54,6 +58,6 @@ class MainViewModel : ViewModel() {
     /** Вызывается из onResume: если пользователь сменил город — перезагружаем. */
     fun refreshIfCityChanged() {
         val url = cities.selected().url
-        if (url != loadedUrl) refresh()
+        if (url != loadedUrl || Graph.settings.load().weatherProvider != loadedProvider) refresh()
     }
 }

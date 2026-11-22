@@ -47,6 +47,7 @@ import tech.stpnk.weather.data.prefs.AppSettings
 import tech.stpnk.weather.data.prefs.PressureUnit
 import tech.stpnk.weather.data.prefs.TempUnit
 import tech.stpnk.weather.data.prefs.ThemeMode
+import tech.stpnk.weather.data.prefs.WeatherProvider
 import tech.stpnk.weather.data.prefs.WindUnit
 
 private val INTERVALS = listOf(
@@ -95,6 +96,19 @@ fun SettingsScreen(settings: AppSettings, onChange: (AppSettings) -> Unit, onBac
             RadioRow("Светлая", settings.theme == ThemeMode.LIGHT) { onChange(settings.copy(theme = ThemeMode.LIGHT)) }
             RadioRow("Тёмная", settings.theme == ThemeMode.DARK) { onChange(settings.copy(theme = ThemeMode.DARK)) }
             RadioRow("Как в системе", settings.theme == ThemeMode.SYSTEM) { onChange(settings.copy(theme = ThemeMode.SYSTEM)) }
+        }
+
+        SectionLabel("Источник погоды")
+        SettingsGroup {
+            RadioRow("Яндекс Погода", settings.weatherProvider == WeatherProvider.YANDEX) {
+                onChange(settings.copy(weatherProvider = WeatherProvider.YANDEX))
+            }
+            RadioRow("Open-Meteo", settings.weatherProvider == WeatherProvider.OPEN_METEO) {
+                onChange(settings.copy(weatherProvider = WeatherProvider.OPEN_METEO))
+            }
+            RadioRow("MET Norway", settings.weatherProvider == WeatherProvider.MET_NORWAY) {
+                onChange(settings.copy(weatherProvider = WeatherProvider.MET_NORWAY))
+            }
         }
 
         SectionLabel("Уведомления")
