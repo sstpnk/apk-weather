@@ -40,7 +40,9 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
-            isShrinkResources = true
+            // AGP 8.7 на Windows не может повторно открыть .ap_ для shrinkResources.
+            // R8 остаётся включённым; ресурсы не удаляем, чтобы release-сборка была воспроизводимой.
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
