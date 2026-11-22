@@ -91,12 +91,13 @@ class FlightParser(private val today: () -> LocalDate = { LocalDate.now(ZoneOffs
     private fun parseWarnings(rows: List<JsonElement>): List<WarningPlaque> {
         val holder = findFirstObject(rows) { it.containsKey("warningsPersonal") } ?: return emptyList()
         val array = holder["warningsPersonal"] as? JsonArray ?: return emptyList()
+        val order = mapOf("Сегодня" to 0, "Завтра" to 1, "На следующей неделе" to 2)
         return array.mapNotNull { item ->
             val obj = item as? JsonObject ?: return@mapNotNull null
             val title = obj.stringOf("title") ?: return@mapNotNull null
             val text = obj.stringOf("text") ?: return@mapNotNull null
             WarningPlaque(title = title, text = text, icon = obj.stringOf("iconName"))
-        }
+        }.sortedBy { order[it.title] ?: 3 }
     }
 
     private fun allStrings(rows: List<JsonElement>): List<String> {

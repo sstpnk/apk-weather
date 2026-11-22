@@ -1,24 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Солнце с лучами -->
-    <path
-        android:fillColor="#FFC94D"
-        android:pathData="M64,39a14,14 0 1,0 0.001,0z" />
+    <!-- Диск солнца с радиальным градиентом (чуть приподнят и отцентрован под лучи) -->
+    <path android:pathData="M54,36a15,15 0 1,0 0.001,0z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="33"
+                android:gradientRadius="22"
+                android:startColor="#FFE082"
+                android:endColor="#FFA726" />
+        </aapt:attr>
+    </path>
+    <!-- Лучи: симметрично относительно центра диска -->
     <path
         android:strokeColor="#FFC94D"
         android:strokeWidth="4.5"
         android:strokeLineCap="round"
-        android:pathData="M64,17v6M64,55v6M42,39h6M80,39h6M48.6,23.6l4.2,4.2M75.2,50.2l4.2,4.2M79.4,23.6l-4.2,4.2M52.8,50.2l-4.2,4.2" />
-    <!-- Облако поверх солнца -->
+        android:pathData="M54,14v7M54,51v7M31,37h7M70,37h7M38.3,21.3l5,5M64.7,47.7l5,5M69.7,21.3l-5,5M43.3,47.7l-5,5" />
+    <!-- Облако с линейным градиентом -->
+    <path android:pathData="M31,76h38a12,12 0 0,0 0.7,-24 16,16 0 0,0 -30.6,-3.6A10,10 0 0,0 31,76z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="50"
+                android:startY="48"
+                android:endX="50"
+                android:endY="78"
+                android:startColor="#FFFFFF"
+                android:endColor="#D8E3F2" />
+        </aapt:attr>
+    </path>
+    <!-- Нижняя тень облака -->
     <path
-        android:fillColor="#F4F7FB"
-        android:pathData="M31,76h38a12,12 0 0,0 0.7,-24 16,16 0 0,0 -30.6,-3.6A10,10 0 0,0 31,76z" />
-    <!-- Подсветка облака снизу -->
-    <path
-        android:fillColor="#DDE6F2"
+        android:fillColor="#B9C8DD"
         android:pathData="M31,76h38a12,12 0 0,0 4,-23.3 16,16 0 0,1 -42.6,4A10,10 0 0,0 31,76z" />
 </vector>

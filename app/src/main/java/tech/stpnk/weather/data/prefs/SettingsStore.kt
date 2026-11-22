@@ -31,7 +31,7 @@ data class AppSettings(
     val widgetMonochrome: Boolean = false, // чёрно-белые иконки
     // постоянное уведомление (шторка + виджеты)
     val shadeEnabled: Boolean = true,
-    val shadeIntervalMinutes: Int = 60,    // 5,10,15,30,60,120,180,360,720 или -1 (раз в сутки в 6:00)
+    val shadeIntervalMinutes: Int = 15,    // 5,10,15,30,60,120,180,360,720 или -1 (раз в сутки в 6:00)
     // уведомления о предстоящей погоде
     val morningEnabled: Boolean = true,
     val morningHour: Int = 8,

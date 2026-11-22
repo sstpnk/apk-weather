@@ -80,6 +80,8 @@ data class WeatherData(
     val hourly: List<HourForecast> = emptyList(),
     val days: List<DayForecast> = emptyList(),
     val warnings: List<WarningPlaque> = emptyList(),
+    val magneticCurrent: Double? = null,
+    val magneticMaxToday: Double? = null,
     val fetchedAt: Long = 0,
     val sourceUrl: String = "",
 )

@@ -1,5 +1,8 @@
 package tech.stpnk.weather.ui.map
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,29 +17,29 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
+import okhttp3.Request
 import tech.stpnk.weather.Graph
 
 /**
- * Карточка «Погода на карте»: мини-карта с радаром осадков и плашкой-баннером поверх,
- * целиком кликабельна (как в референсе). Карта внутри не интерактивна — тап открывает экран.
+ * Карточка «Погода на карте»: подложка — статическая карта Яндекса (public static-maps),
+ * сверху затемнение под тёмную тему и плашка-баннер. Клик открывает экран карты.
  */
 @Composable
 fun MapPreviewCard(
@@ -47,35 +50,22 @@ fun MapPreviewCard(
     onClick: () -> Unit,
 ) {
     val context = LocalContext.current
-    val frames by produceState(initialValue = emptyList<RadarFrame>()) {
-        value = RadarFeed.frames(Graph.http)
-    }
+    var bitmap by remember { mutableStateOf<Bitmap?>(null) }
 
-    val mapView = remember {
-        configureOsmdroid(context)
-        MapView(context).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
-            setMultiTouchControls(false)
-            setBuiltInZoomControls(false)
-            controller.setZoom(8.8)
-            controller.setCenter(GeoPoint(lat, lon))
-            val marker = Marker(this).apply {
-                position = GeoPoint(lat, lon)
-                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                icon = pinDrawable(context)
-                title = cityName
+    LaunchedEffect(lat, lon) {
+        bitmap = runCatching {
+            val url = "https://static-maps.yandex.ru/1.x/?l=map&ll=$lon,$lat&z=8&size=650,420" +
+                "&pt=$lon,$lat,pm2rdm&lang=ru_RU"
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+                .build()
+            Graph.http.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use null
+                response.body?.byteStream()?.let { BitmapFactory.decodeStream(it) }
             }
-            overlays.add(marker)
-        }
-    }
-
-    androidx.compose.runtime.LaunchedEffect(frames) {
-        val last = frames.lastOrNull() ?: return@LaunchedEffect
-        mapView.replaceRadarOverlay(radarOverlay(context, last))
-    }
-    DisposableEffect(Unit) {
-        mapView.onResume()
-        onDispose { mapView.onPause() }
+        }.getOrNull()
     }
 
     Box(
@@ -83,10 +73,20 @@ fun MapPreviewCard(
             .fillMaxWidth()
             .height(190.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF141A21))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
-        // прозрачный слой: перехватывает тапы, карта под ним не скроллится
+        val bmp = bitmap
+        if (bmp != null) {
+            Image(
+                bitmap = bmp.asImageBitmap(),
+                contentDescription = cityName,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            // затемнение под тёмную тему приложения
+            Box(Modifier.matchParentSize().background(Color(0x660A1018)))
+        }
+        // прозрачный слой: тап открывает карту
         Box(Modifier.matchParentSize().clickable(onClick = onClick))
         if (banner != null) {
             Row(

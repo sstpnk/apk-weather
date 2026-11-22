@@ -56,6 +56,7 @@ import tech.stpnk.weather.domain.model.CurrentWeather
 import tech.stpnk.weather.domain.model.DayForecast
 import tech.stpnk.weather.domain.model.HourForecast
 import tech.stpnk.weather.domain.model.WarningPlaque
+import tech.stpnk.weather.domain.model.WeatherData
 import tech.stpnk.weather.ui.conditionTextRu
 import tech.stpnk.weather.ui.formatPressure
 import tech.stpnk.weather.ui.formatTemp
@@ -166,7 +167,7 @@ private fun ContentScreen(
                             Icon(
                                 painterResource(weatherIconRes(current?.condition, null, isDay)),
                                 contentDescription = null,
-                                modifier = Modifier.size(48.dp),
+                                modifier = Modifier.size(84.dp),
                                 tint = Color.Unspecified,
                             )
                         }
@@ -183,7 +184,7 @@ private fun ContentScreen(
                     }
                     MetricColumn(
                         current = current,
-                        today = data.days.firstOrNull(),
+                        data = data,
                         settings = settings,
                         modifier = Modifier.width(168.dp).fillMaxHeight(),
                     )
@@ -210,8 +211,9 @@ private fun ContentScreen(
 
                 if (data.warnings.isNotEmpty()) {
                     Spacer(Modifier.height(10.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        data.warnings.forEach { warning -> WarningCard(warning) }
+                    // Плашки вбок, в порядке Сегодня → Завтра → На следующей неделе
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(data.warnings) { warning -> WarningCard(warning) }
                     }
                 }
 
@@ -280,12 +282,23 @@ private fun TopBar(
 }
 
 @Composable
-private fun MetricColumn(current: CurrentWeather?, today: DayForecast?, settings: AppSettings, modifier: Modifier = Modifier) {
+private fun MetricColumn(current: CurrentWeather?, data: WeatherData, settings: AppSettings, modifier: Modifier = Modifier) {
     val wind = buildString {
         append(formatWind(current?.windSpeedMs, settings.windUnit))
         windDirectionRu(current?.windDirection)?.let { dir -> if (isNotEmpty()) append(", $dir") }
     }
-    val kp = today?.kpText?.replaceFirstChar { it.uppercase() } ?: "—"
+    val magnetic = buildString {
+        append("МП ")
+        val cur = tech.stpnk.weather.data.magnetic.MagneticFeed.format(data.magneticCurrent)
+        val max = tech.stpnk.weather.data.magnetic.MagneticFeed.format(data.magneticMaxToday)
+        if (cur != null) {
+            append(cur)
+            if (max != null) append(" / $max")
+        } else {
+            val fallback = data.days.firstOrNull()?.kpText?.replaceFirstChar { it.uppercase() }
+            append(fallback ?: "—")
+        }
+    }
     Column(modifier, verticalArrangement = Arrangement.SpaceBetween) {
         MetricIconRow(R.drawable.ic_metric_wind, wind)
         MetricIconRow(R.drawable.ic_metric_pressure, formatPressure(current?.pressureMmHg, settings.pressureUnit))
@@ -295,7 +308,7 @@ private fun MetricColumn(current: CurrentWeather?, today: DayForecast?, settings
         }
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
             MetricIconRow(R.drawable.ic_metric_uv, current?.uvIndex?.let { "УФ $it" } ?: "УФ —", compact = true)
-            MetricIconRow(R.drawable.ic_metric_kp, kp, compact = true)
+            MetricIconRow(R.drawable.ic_metric_kp, magnetic, compact = true)
         }
     }
 }
@@ -373,9 +386,12 @@ private sealed interface HourCell {
 }
 
 private fun buildHourCells(hourly: List<HourForecast>, sunrise: String?, sunset: String?): List<HourCell> {
+    if (hourly.isEmpty()) return emptyList()
     val out = mutableListOf<HourCell>()
-    var riseDone = sunrise == null
-    var setDone = sunset == null
+    val firstHour = hourly.first().time
+    // если восход/закат раньше первого показанного часа — маркер уже неактуален
+    var riseDone = sunrise == null || sunrise <= firstHour
+    var setDone = sunset == null || sunset <= firstHour
     for (hour in hourly) {
         val time = hour.time
         if (!riseDone && sunrise != null && time >= sunrise) {
@@ -403,7 +419,7 @@ private fun WarningCard(warning: WarningPlaque) {
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.width(310.dp),
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
             Box(

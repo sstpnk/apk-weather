@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import tech.stpnk.weather.data.magnetic.MagneticFeed
 import tech.stpnk.weather.data.cities.CityEntry
 import tech.stpnk.weather.domain.model.WeatherData
 import java.io.IOException
@@ -32,7 +33,9 @@ class YandexWebSource(
             val html = response.body?.string() ?: throw IOException("Пустой ответ для $url")
             val payload = FlightExtractor.extract(html)
             if (payload.isEmpty()) throw IOException("Не найден flight-поток в ответе для $url")
-            parser.parse(payload, sourceUrl = url)
+            val parsed = parser.parse(payload, sourceUrl = url)
+            val magnetic = runCatching { MagneticFeed.today(client) }.getOrNull()
+            parsed.copy(magneticCurrent = magnetic?.current, magneticMaxToday = magnetic?.maxToday)
         }
     }
 

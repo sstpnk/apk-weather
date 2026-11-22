@@ -22,7 +22,7 @@
             android:format12Hour="HH:mm"
             android:format24Hour="HH:mm"
             android:textColor="#FFFFFF"
-            android:textSize="34sp" />
+            android:textSize="40sp" />
 
         <LinearLayout
             android:layout_width="wrap_content"

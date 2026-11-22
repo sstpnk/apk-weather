@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Тема только для запуска: дальше экран рисует Compose. -->
-    <style name="Theme.Weather" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/launch_background</item>
+    <!-- Светлая тема окна (системная палитра принудительно светлая — приложение само переключает цвета Compose). -->
+    <style name="Theme.Weather" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/launch_background_light</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>
