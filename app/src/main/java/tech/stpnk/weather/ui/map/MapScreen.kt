@@ -1,9 +1,10 @@
 package tech.stpnk.weather.ui.map
 
-import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.drawable.BitmapDrawable
+import android.os.Bundle
+import android.widget.TextView
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -19,7 +20,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,37 +33,55 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
-import org.osmdroid.config.Configuration
+import kotlinx.coroutines.delay
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
-import tech.stpnk.weather.R
-import java.io.File
+import tech.stpnk.weather.Graph
+import tech.stpnk.weather.ui.theme.WeatherTheme
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
-/** Карта города: osmdroid + OSM-тайлы, пин города. Погодные слои — после разблокировки API. */
+/** Карта города с анимированным радаром осадков (RainViewer). */
 @Composable
 fun MapScreen(cityName: String, lat: Double, lon: Double, onBack: () -> Unit) {
     val context = LocalContext.current
+    val frames by produceState(initialValue = emptyList<RadarFrame>()) {
+        value = RadarFeed.frames(Graph.http)
+    }
+    var frameLabel by remember { mutableStateOf("") }
 
     val mapView = remember {
-        Configuration.getInstance().apply {
-            userAgentValue = "tech.stpnk.weather/0.1"
-            osmdroidBasePath = File(context.cacheDir, "osmdroid").apply { mkdirs() }
-            osmdroidTileCache = File(context.cacheDir, "osmdroid/tiles").apply { mkdirs() }
-        }
+        configureOsmdroid(context)
         MapView(context).apply {
             setTileSource(TileSourceFactory.MAPNIK)
             setMultiTouchControls(true)
-            controller.setZoom(10.5)
+            controller.setZoom(9.0)
             controller.setCenter(GeoPoint(lat, lon))
-            val marker = Marker(this)
-            marker.position = GeoPoint(lat, lon)
-            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-            marker.title = cityName
-            marker.icon = pinDrawable(context)
+            val marker = Marker(this).apply {
+                position = GeoPoint(lat, lon)
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                icon = pinDrawable(context)
+                title = cityName
+            }
             overlays.add(marker)
+        }
+    }
+
+    androidx.compose.runtime.LaunchedEffect(frames) {
+        if (frames.isEmpty()) return@LaunchedEffect
+        var index = 0
+        while (true) {
+            val frame = frames[index % frames.size]
+            mapView.replaceRadarOverlay(radarOverlay(context, frame))
+            frameLabel = Instant.ofEpochSecond(frame.time)
+                .atZone(ZoneId.systemDefault())
+                .format(DateTimeFormatter.ofPattern("HH:mm", Locale.forLanguageTag("ru")))
+            index++
+            delay(800)
         }
     }
 
@@ -69,6 +92,7 @@ fun MapScreen(cityName: String, lat: Double, lon: Double, onBack: () -> Unit) {
 
     Box(Modifier.fillMaxSize()) {
         AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
+
         Row(
             Modifier
                 .fillMaxWidth()
@@ -82,17 +106,13 @@ fun MapScreen(cityName: String, lat: Double, lon: Double, onBack: () -> Unit) {
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = Color.White)
             }
-            Text(cityName, color = Color.White, fontSize = 17.sp)
+            Text(cityName, color = Color.White, fontSize = 17.sp, modifier = Modifier.weight(1f))
+            Text(
+                if (frameLabel.isEmpty()) "радар…" else "радар $frameLabel",
+                color = Color.White.copy(alpha = 0.8f),
+                fontSize = 13.sp,
+                modifier = Modifier.padding(end = 12.dp),
+            )
         }
     }
-}
-
-private fun pinDrawable(context: Context): BitmapDrawable {
-    val drawable = ContextCompat.getDrawable(context, R.drawable.ic_map_pin)!!
-    val size = 96
-    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
-    drawable.setBounds(0, 0, size, size)
-    drawable.draw(canvas)
-    return BitmapDrawable(context.resources, bitmap)
 }

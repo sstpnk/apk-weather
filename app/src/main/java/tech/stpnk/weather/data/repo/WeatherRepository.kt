@@ -21,7 +21,7 @@ class WeatherRepository(
     private val maxAgeMs: Long = DEFAULT_MAX_AGE_MS,
 ) {
 
-    suspend fun load(url: String, force: Boolean = false): LoadOutcome {
+    suspend fun load(url: String, force: Boolean = false, maxAgeMs: Long = this.maxAgeMs): LoadOutcome {
         val cached = cache.read(url)
         val age = cache.ageMs(url)
         val isFresh = cached != null && age != null && age <= maxAgeMs

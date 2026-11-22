@@ -3,7 +3,7 @@ package tech.stpnk.weather
 import android.app.Application
 import android.content.Context
 import okhttp3.OkHttpClient
-import tech.stpnk.weather.bg.BackgroundScheduler
+import tech.stpnk.weather.bg.AlarmScheduler
 import tech.stpnk.weather.data.cache.WeatherCache
 import tech.stpnk.weather.data.cities.CitiesStore
 import tech.stpnk.weather.data.geo.GeoSearchSource
@@ -22,7 +22,7 @@ class App : Application() {
         super.onCreate()
         Graph.init(this)
         Notifications.ensure(this)
-        BackgroundScheduler.schedule(this)
+        AlarmScheduler.scheduleAll(this)
     }
 }
 

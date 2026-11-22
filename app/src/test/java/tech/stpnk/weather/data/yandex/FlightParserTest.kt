@@ -54,6 +54,22 @@ class FlightParserTest {
     }
 
     @Test
+    fun `восход, закат, уф и магнитное поле разбираются`() {
+        val today = requireNotNull(data.days.firstOrNull()) { "нет сегодняшнего дня" }
+        assertTrue("восход не по формату: ${today.sunrise}", Regex("\\d{2}:\\d{2}").matches(today.sunrise ?: ""))
+        assertTrue("закат не по формату", Regex("\\d{2}:\\d{2}").matches(today.sunset ?: ""))
+        assertNotNull("нет УФ-текста", today.uvText)
+        assertNotNull("нет магнитного поля", today.kpText)
+    }
+
+    @Test
+    fun `плашки предупреждений есть`() {
+        assertTrue("предупреждения не разобраны", data.warnings.isNotEmpty())
+        val titles = data.warnings.map { it.title }
+        assertTrue("нет заголовка «Сегодня»", titles.any { it.startsWith("Сегодня") })
+    }
+
+    @Test
     fun `почасовая лента не пуста и корректна`() {
         assertTrue("часовых ячеек слишком мало: ${data.hourly.size}", data.hourly.size >= 20)
         data.hourly.forEach { hour ->

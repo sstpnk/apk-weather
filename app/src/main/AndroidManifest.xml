@@ -53,14 +53,45 @@
         </receiver>
 
         <receiver
-            android:name=".widget.BigWeatherWidgetProvider"
+            android:name=".widget.WideWeatherWidgetProvider"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/widget_big_info" />
+                android:resource="@xml/widget_wide_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.ClockWeatherWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_clock_info" />
+        </receiver>
+
+        <receiver
+            android:name=".bg.ShadeAlarmReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".bg.MorningAlarmReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".bg.EveningAlarmReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".bg.BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
         </receiver>
     </application>
 

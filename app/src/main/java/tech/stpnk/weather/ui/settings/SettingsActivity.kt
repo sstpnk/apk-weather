@@ -10,7 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import tech.stpnk.weather.Graph
-import tech.stpnk.weather.bg.BackgroundScheduler
+import tech.stpnk.weather.bg.AlarmScheduler
 import tech.stpnk.weather.data.prefs.ThemeMode
 import tech.stpnk.weather.ui.theme.WeatherTheme
 
@@ -34,8 +34,8 @@ class SettingsActivity : ComponentActivity() {
                         val themeChanged = new.theme != settings.theme
                         store.save(new)
                         settings = new
-                        // расписание воркеров могло измениться (интервал, час уведомления)
-                        BackgroundScheduler.schedule(this)
+                        // расписание будильников (интервал, время уведомлений) могло измениться
+                        AlarmScheduler.scheduleAll(this)
                         if (themeChanged) recreate()
                     },
                     onBack = { finish() },

@@ -58,6 +58,18 @@ data class DayForecast(
     val label: String? = null,
     val isRed: Boolean = false,
     val parts: Map<String, DayPartForecast> = emptyMap(),
+    val sunrise: String? = null,
+    val sunset: String? = null,
+    val uvText: String? = null,
+    val kpText: String? = null,
+)
+
+/** Плашка предупреждения со страницы («Сегодня», «Завтра», «На следующей неделе»). */
+@Serializable
+data class WarningPlaque(
+    val title: String,
+    val text: String,
+    val icon: String? = null,
 )
 
 /** Полный снимок данных одного города, сохраняется в кэш как есть. */
@@ -67,6 +79,7 @@ data class WeatherData(
     val current: CurrentWeather? = null,
     val hourly: List<HourForecast> = emptyList(),
     val days: List<DayForecast> = emptyList(),
+    val warnings: List<WarningPlaque> = emptyList(),
     val fetchedAt: Long = 0,
     val sourceUrl: String = "",
 )

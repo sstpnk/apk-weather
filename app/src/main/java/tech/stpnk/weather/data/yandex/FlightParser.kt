@@ -14,6 +14,7 @@ import tech.stpnk.weather.domain.model.DayForecast
 import tech.stpnk.weather.domain.model.DayPartForecast
 import tech.stpnk.weather.domain.model.GeoPlace
 import tech.stpnk.weather.domain.model.HourForecast
+import tech.stpnk.weather.domain.model.WarningPlaque
 import tech.stpnk.weather.domain.model.WeatherData
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -47,14 +48,68 @@ class FlightParser(private val today: () -> LocalDate = { LocalDate.now(ZoneOffs
             obj.containsKey("geoHierarchy") || (obj.containsKey("geoId") && obj.containsKey("lat") && obj.containsKey("lon"))
         }
 
+        val extras = parseDayExtras(allStrings(rows))
+        val days = parseDays(rows).mapIndexed { index, day ->
+            val extra = extras.getOrNull(index) ?: return@mapIndexed day
+            day.copy(sunrise = extra.sunrise, sunset = extra.sunset, uvText = extra.uv, kpText = extra.kp)
+        }
+
         return WeatherData(
             place = geo?.let(::toPlace),
             current = fact?.let(::toCurrent),
             hourly = parseHourly(rows),
-            days = parseDays(rows),
+            days = days,
+            warnings = parseWarnings(rows),
             fetchedAt = System.currentTimeMillis(),
             sourceUrl = sourceUrl,
         )
+    }
+
+    private data class DayExtra(val sunrise: String?, val sunset: String?, val uv: String?, val kp: String?)
+
+    private val sunRegex = Regex("восход\\s+(\\d{2}:\\d{2})\\s*<br\\s*/?>\\s*закат\\s+(\\d{2}:\\d{2})")
+    private val uvRegex = Regex("уф-индекс:\\s*(\\d+),\\s*([^<]+?)(?:<br|$)", RegexOption.IGNORE_CASE)
+    private val kpRegex = Regex("магнитное поле:\\s*([^<]+?)(?:<br|$)", RegexOption.IGNORE_CASE)
+
+    /** Восход/закат, УФ и магнитное поле живут в a11y-строках дней (по одной на день, по порядку). */
+    private fun parseDayExtras(strings: List<String>): List<DayExtra> {
+        val result = mutableListOf<DayExtra>()
+        for (text in strings) {
+            if (!text.contains("восход")) continue
+            val sun = sunRegex.find(text) ?: continue
+            val uv = uvRegex.find(text)?.groupValues?.let { "${it[1]}, ${it[2].trim()}" }
+            val kp = kpRegex.find(text)?.groupValues?.get(1)
+                ?.replace("cлабая", "слабая")
+                ?.replace("Cлабая", "Слабая")
+                ?.trim()
+            result += DayExtra(sun.groupValues[1], sun.groupValues[2], uv, kp)
+        }
+        return result
+    }
+
+    /** Плашки предупреждений: объект с ключом warningsPersonal → массив {title, text, iconName}. */
+    private fun parseWarnings(rows: List<JsonElement>): List<WarningPlaque> {
+        val holder = findFirstObject(rows) { it.containsKey("warningsPersonal") } ?: return emptyList()
+        val array = holder["warningsPersonal"] as? JsonArray ?: return emptyList()
+        return array.mapNotNull { item ->
+            val obj = item as? JsonObject ?: return@mapNotNull null
+            val title = obj.stringOf("title") ?: return@mapNotNull null
+            val text = obj.stringOf("text") ?: return@mapNotNull null
+            WarningPlaque(title = title, text = text, icon = obj.stringOf("iconName"))
+        }
+    }
+
+    private fun allStrings(rows: List<JsonElement>): List<String> {
+        val out = ArrayList<String>(256)
+        fun collect(node: JsonElement) {
+            when (node) {
+                is JsonPrimitive -> if (node.isString && !node.content.startsWith("$")) out += node.content
+                is JsonArray -> node.forEach { collect(it) }
+                is JsonObject -> node.values.forEach { collect(it) }
+            }
+        }
+        rows.forEach { collect(it) }
+        return out
     }
 
     // ---------- ссылки ----------

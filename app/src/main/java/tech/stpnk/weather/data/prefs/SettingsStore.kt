@@ -25,11 +25,14 @@ data class AppSettings(
     // виджеты
     val widgetTransparency: Int = 30,      // 0 — непрозрачно, 100 — почти прозрачный
     val widgetMonochrome: Boolean = false, // чёрно-белые иконки
-    val widgetRefreshMinutes: Int = 60,    // интервал обновления
-    // уведомления
-    val dailyEnabled: Boolean = true,      // «Погода на сегодня»
-    val dailyHour: Int = 8,                // час отправки
-    val shadeEnabled: Boolean = true,      // виджет в шторке
+    // постоянное уведомление (шторка + виджеты)
+    val shadeEnabled: Boolean = true,
+    val shadeIntervalMinutes: Int = 60,    // 5,10,15,30,60,120,180,360,720 или -1 (раз в сутки в 6:00)
+    // уведомления о предстоящей погоде
+    val morningEnabled: Boolean = true,
+    val morningHour: Int = 8,
+    val eveningEnabled: Boolean = true,
+    val eveningHour: Int = 21,
 )
 
 interface KeyValueStore {

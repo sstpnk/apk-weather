@@ -56,6 +56,20 @@ class WidgetTextTest {
     }
 
     @Test
+    fun `вечерний текст на завтра`() {
+        assertEquals("+4°…+9° · Ясно · Ветер 3 м/с", WidgetRenderer.eveningText(data()))
+        assertEquals("Погода завтра · Москва", WidgetRenderer.eveningTitle(data()))
+    }
+
+    @Test
+    fun `минимум и максимум для компактного виджета`() {
+        assertEquals(
+            "+11° +4°",
+            WidgetRenderer.minMax(data(), tech.stpnk.weather.data.prefs.AppSettings()),
+        )
+    }
+
+    @Test
     fun `дата и город в большом виджете`() {
         assertTrue(WidgetRenderer.bigDateCity(data()).endsWith(" · Москва"))
     }

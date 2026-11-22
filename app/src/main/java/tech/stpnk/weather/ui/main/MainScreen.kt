@@ -1,7 +1,6 @@
 package tech.stpnk.weather.ui.main
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,16 +19,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -41,6 +38,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,15 +49,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import tech.stpnk.weather.Graph
 import tech.stpnk.weather.R
 import tech.stpnk.weather.data.prefs.AppSettings
 import tech.stpnk.weather.domain.model.CurrentWeather
 import tech.stpnk.weather.domain.model.DayForecast
 import tech.stpnk.weather.domain.model.HourForecast
+import tech.stpnk.weather.domain.model.WarningPlaque
 import tech.stpnk.weather.ui.conditionTextRu
 import tech.stpnk.weather.ui.formatPressure
 import tech.stpnk.weather.ui.formatTemp
 import tech.stpnk.weather.ui.formatWind
+import tech.stpnk.weather.ui.map.MapPreviewCard
 import tech.stpnk.weather.ui.precipitationOutlook
 import tech.stpnk.weather.ui.todayDayNight
 import tech.stpnk.weather.ui.weatherIconRes
@@ -122,6 +123,7 @@ private fun ContentScreen(
 ) {
     val data = state.data
     val current = data.current
+    val city = Graph.cities.selected()
     val isDay = current?.daytime != false
     val headerBrush = Brush.verticalGradient(
         if (isDay) listOf(Color(0xFF1E7BD6), Color(0xFF1560BF))
@@ -135,19 +137,19 @@ private fun ContentScreen(
     ) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             Column(
-                Modifier.fillMaxWidth().background(headerBrush).statusBarsPadding().padding(bottom = 18.dp)
+                Modifier.fillMaxWidth().background(headerBrush).statusBarsPadding().padding(bottom = 16.dp)
             ) {
                 TopBar(
-                    city = data.place?.city,
+                    city = data.place?.city ?: city.name,
                     district = data.place?.district ?: data.place?.province,
                     onOpenCities = onOpenCities,
                     onOpenSettings = onOpenSettings,
                     onRefresh = onRefresh,
                 )
-                // Слева — текущая погода, справа — метрики; высоты выровнены
+                // Слева — текущая погода, справа — метрики с иконками; высоты выровнены
                 Row(
                     Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Column(
                         Modifier.weight(1f).fillMaxHeight(),
@@ -179,31 +181,38 @@ private fun ContentScreen(
                             fontSize = 13.sp,
                         )
                     }
-                    MetricColumn(current, settings, Modifier.width(170.dp).fillMaxHeight())
+                    MetricColumn(
+                        current = current,
+                        today = data.days.firstOrNull(),
+                        settings = settings,
+                        modifier = Modifier.width(168.dp).fillMaxHeight(),
+                    )
                 }
                 Spacer(Modifier.height(14.dp))
-                HourlyStrip(hourly = data.hourly, isDay = isDay, settings = settings)
+                HourlyStrip(
+                    hourly = data.hourly,
+                    sunrise = data.days.firstOrNull()?.sunrise,
+                    sunset = data.days.firstOrNull()?.sunset,
+                    isDay = isDay,
+                    settings = settings,
+                )
             }
 
             Column(Modifier.padding(horizontal = 16.dp)) {
-                val outlook = precipitationOutlook(data.hourly.mapNotNull { it.summary })
-                if (outlook != null) {
-                    Spacer(Modifier.height(12.dp))
-                    NowcastBanner(text = outlook, onClick = onOpenMap)
-                }
-                Spacer(Modifier.height(10.dp))
-                Button(
+                Spacer(Modifier.height(12.dp))
+                MapPreviewCard(
+                    cityName = data.place?.city ?: city.name,
+                    lat = city.lat ?: 55.7522,
+                    lon = city.lon ?: 37.6156,
+                    banner = precipitationOutlook(data.hourly.mapNotNull { it.summary }),
                     onClick = onOpenMap,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
-                    shape = RoundedCornerShape(14.dp),
-                ) {
-                    Icon(Icons.Filled.Place, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.show_on_map))
+                )
+
+                if (data.warnings.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        data.warnings.forEach { warning -> WarningCard(warning) }
+                    }
                 }
 
                 Spacer(Modifier.height(20.dp))
@@ -271,56 +280,115 @@ private fun TopBar(
 }
 
 @Composable
-private fun MetricColumn(current: CurrentWeather?, settings: AppSettings, modifier: Modifier = Modifier) {
+private fun MetricColumn(current: CurrentWeather?, today: DayForecast?, settings: AppSettings, modifier: Modifier = Modifier) {
     val wind = buildString {
         append(formatWind(current?.windSpeedMs, settings.windUnit))
         windDirectionRu(current?.windDirection)?.let { dir -> if (isNotEmpty()) append(", $dir") }
     }
-    Column(
-        modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).padding(6.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
-    ) {
-        MetricRow("Ветер", wind)
-        MetricRow("Давление", formatPressure(current?.pressureMmHg, settings.pressureUnit))
-        MetricRow("Влажность", current?.humidity?.let { "$it%" } ?: "—")
-        current?.waterTempC?.let { MetricRow("Вода", formatTemp(it, settings.tempUnit)) }
+    val kp = today?.kpText?.replaceFirstChar { it.uppercase() } ?: "—"
+    Column(modifier, verticalArrangement = Arrangement.SpaceBetween) {
+        MetricIconRow(R.drawable.ic_metric_wind, wind)
+        MetricIconRow(R.drawable.ic_metric_pressure, formatPressure(current?.pressureMmHg, settings.pressureUnit))
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            MetricIconRow(R.drawable.ic_metric_humidity, current?.humidity?.let { "$it%" } ?: "—")
+            MetricIconRow(R.drawable.ic_metric_water, current?.waterTempC?.let { formatTemp(it, settings.tempUnit) } ?: "—")
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            MetricIconRow(R.drawable.ic_metric_uv, current?.uvIndex?.let { "УФ $it" } ?: "УФ —", compact = true)
+            MetricIconRow(R.drawable.ic_metric_kp, kp, compact = true)
+        }
     }
 }
 
 @Composable
-private fun MetricRow(label: String, value: String) {
-    Column {
-        Text(label, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
-        Text(value, color = Color.White, fontSize = 15.sp)
+private fun MetricIconRow(iconRes: Int, value: String, compact: Boolean = false) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            painterResource(iconRes),
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.8f),
+            modifier = Modifier.size(if (compact) 15.dp else 17.dp),
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            value,
+            color = Color.White,
+            fontSize = if (compact) 13.sp else 14.sp,
+            maxLines = 1,
+        )
     }
 }
 
 @Composable
-private fun HourlyStrip(hourly: List<HourForecast>, isDay: Boolean, settings: AppSettings) {
+private fun HourlyStrip(
+    hourly: List<HourForecast>,
+    sunrise: String?,
+    sunset: String?,
+    isDay: Boolean,
+    settings: AppSettings,
+) {
+    val cells = remember(hourly, sunrise, sunset) { buildHourCells(hourly, sunrise, sunset) }
     LazyRow(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        items(hourly) { hour ->
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(hour.time, color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp)
-                Spacer(Modifier.height(6.dp))
-                Icon(
-                    painterResource(weatherIconRes(null, hourCondition(hour), isDay)),
-                    contentDescription = null,
-                    modifier = Modifier.size(34.dp),
-                    tint = Color.Unspecified,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    formatTemp(hour.temperatureC, settings.tempUnit),
-                    color = Color.White,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
+        items(cells) { cell ->
+            when (cell) {
+                is HourCell.Sun -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        painterResource(if (cell.rise) R.drawable.ic_sunrise else R.drawable.ic_sunset),
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.85f),
+                        modifier = Modifier.size(22.dp),
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(if (cell.rise) "восход" else "закат", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
+                    Text(cell.time, color = Color.White, fontSize = 13.sp)
+                }
+                is HourCell.Hour -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(cell.data.time, color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp)
+                    Spacer(Modifier.height(6.dp))
+                    Icon(
+                        painterResource(weatherIconRes(null, hourCondition(cell.data), isDay)),
+                        contentDescription = null,
+                        modifier = Modifier.size(34.dp),
+                        tint = Color.Unspecified,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        formatTemp(cell.data.temperatureC, settings.tempUnit),
+                        color = Color.White,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         }
     }
+}
+
+private sealed interface HourCell {
+    data class Hour(val data: HourForecast) : HourCell
+    data class Sun(val time: String, val rise: Boolean) : HourCell
+}
+
+private fun buildHourCells(hourly: List<HourForecast>, sunrise: String?, sunset: String?): List<HourCell> {
+    val out = mutableListOf<HourCell>()
+    var riseDone = sunrise == null
+    var setDone = sunset == null
+    for (hour in hourly) {
+        val time = hour.time
+        if (!riseDone && sunrise != null && time >= sunrise) {
+            out += HourCell.Sun(sunrise, rise = true)
+            riseDone = true
+        }
+        if (!setDone && sunset != null && time >= sunset) {
+            out += HourCell.Sun(sunset, rise = false)
+            setDone = true
+        }
+        out += HourCell.Hour(hour)
+    }
+    return out
 }
 
 /** Условие из a11y-строки ячейки: «12:00: +9°, ясно, Ощущается как +5°.» → «ясно». */
@@ -331,23 +399,51 @@ private fun hourCondition(hour: HourForecast): String? {
 }
 
 @Composable
-private fun NowcastBanner(text: String, onClick: () -> Unit) {
+private fun WarningCard(warning: WarningPlaque) {
     Surface(
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            )
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
+            Box(
+                Modifier.size(46.dp).clip(CircleShape).background(Color(0xFF2F6FD0)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painterResource(warningIcon(warning.icon)),
+                    contentDescription = null,
+                    tint = Color.Unspecified,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "${warning.title}: ${warning.text}",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Подробный прогноз ›",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                )
+            }
         }
+    }
+}
+
+private fun warningIcon(code: String?): Int {
+    val c = code ?: ""
+    return when {
+        c.contains("th") -> R.drawable.ic_w_storm
+        c.contains("ra") && c.contains("sn") -> R.drawable.ic_w_snow
+        c.contains("ra") -> R.drawable.ic_w_rain
+        c.contains("sn") -> R.drawable.ic_w_snow
+        c.contains("ovc") -> R.drawable.ic_w_overcast
+        else -> R.drawable.ic_w_cloudy
     }
 }
 

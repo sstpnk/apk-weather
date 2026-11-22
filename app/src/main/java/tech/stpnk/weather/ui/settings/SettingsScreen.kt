@@ -17,19 +17,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -39,15 +43,29 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import tech.stpnk.weather.R
 import tech.stpnk.weather.data.prefs.AppSettings
 import tech.stpnk.weather.data.prefs.PressureUnit
 import tech.stpnk.weather.data.prefs.TempUnit
 import tech.stpnk.weather.data.prefs.ThemeMode
 import tech.stpnk.weather.data.prefs.WindUnit
 
+private val INTERVALS = listOf(
+    "5 минут" to 5,
+    "10 минут" to 10,
+    "15 минут" to 15,
+    "30 минут" to 30,
+    "1 час" to 60,
+    "2 часа" to 120,
+    "3 часа" to 180,
+    "6 часов" to 360,
+    "12 часов" to 720,
+    "Раз в сутки (6:00)" to -1,
+)
+
 @Composable
 fun SettingsScreen(settings: AppSettings, onChange: (AppSettings) -> Unit, onBack: () -> Unit) {
+    var intervalDialog by remember { mutableStateOf(false) }
+
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Row(
             Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 4.dp),
@@ -81,16 +99,29 @@ fun SettingsScreen(settings: AppSettings, onChange: (AppSettings) -> Unit, onBac
 
         SectionLabel("Уведомления")
         SettingsGroup {
-            SwitchRow("Погода на сегодня", settings.dailyEnabled) {
-                onChange(settings.copy(dailyEnabled = it))
+            SwitchRow("Постоянное (шторка и виджеты)", settings.shadeEnabled) {
+                onChange(settings.copy(shadeEnabled = it))
             }
-            if (settings.dailyEnabled) {
-                StepperRow("Время", "${settings.dailyHour}:00") { delta ->
-                    onChange(settings.copy(dailyHour = (settings.dailyHour + delta + 24) % 24))
+            if (settings.shadeEnabled) {
+                ValueRow("Интервал", INTERVALS.firstOrNull { it.second == settings.shadeIntervalMinutes }?.first ?: "${settings.shadeIntervalMinutes} мин") {
+                    intervalDialog = true
                 }
             }
-            SwitchRow("Виджет в шторке", settings.shadeEnabled) {
-                onChange(settings.copy(shadeEnabled = it))
+            SwitchRow("Утром — на сегодня", settings.morningEnabled) {
+                onChange(settings.copy(morningEnabled = it))
+            }
+            if (settings.morningEnabled) {
+                StepperRow("Время", "${settings.morningHour}:00") { delta ->
+                    onChange(settings.copy(morningHour = (settings.morningHour + delta + 24) % 24))
+                }
+            }
+            SwitchRow("Вечером — на завтра", settings.eveningEnabled) {
+                onChange(settings.copy(eveningEnabled = it))
+            }
+            if (settings.eveningEnabled) {
+                StepperRow("Время", "${settings.eveningHour}:00") { delta ->
+                    onChange(settings.copy(eveningHour = (settings.eveningHour + delta + 24) % 24))
+                }
             }
         }
 
@@ -102,16 +133,42 @@ fun SettingsScreen(settings: AppSettings, onChange: (AppSettings) -> Unit, onBac
             SwitchRow("Чёрно-белые иконки", settings.widgetMonochrome) {
                 onChange(settings.copy(widgetMonochrome = it))
             }
-            SegmentedRow(
-                "Обновление",
-                listOf("30 мин", "60 мин", "2 ч"),
-                when (settings.widgetRefreshMinutes) { 30 -> 0; 60 -> 1; else -> 2 },
-            ) { i ->
-                onChange(settings.copy(widgetRefreshMinutes = if (i == 0) 30 else if (i == 1) 60 else 120))
-            }
         }
 
         Spacer(Modifier.height(24.dp))
+    }
+
+    if (intervalDialog) {
+        AlertDialog(
+            onDismissRequest = { intervalDialog = false },
+            confirmButton = {
+                TextButton(onClick = { intervalDialog = false }) { Text("Закрыть") }
+            },
+            title = { Text("Интервал обновления") },
+            text = {
+                Column {
+                    INTERVALS.forEach { (label, minutes) ->
+                        Row(
+                            Modifier.fillMaxWidth().clickable {
+                                onChange(settings.copy(shadeIntervalMinutes = minutes))
+                                intervalDialog = false
+                            }.padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(
+                                selected = settings.shadeIntervalMinutes == minutes,
+                                onClick = {
+                                    onChange(settings.copy(shadeIntervalMinutes = minutes))
+                                    intervalDialog = false
+                                },
+                                colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary),
+                            )
+                            Text(label, fontSize = 15.sp)
+                        }
+                    }
+                }
+            },
+        )
     }
 }
 
@@ -198,6 +255,18 @@ private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean
 }
 
 @Composable
+private fun ValueRow(label: String, value: String, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, fontSize = 16.sp)
+        Text(value, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+    }
+}
+
+@Composable
 private fun SliderRow(label: String, initialPercent: Int, onValue: (Int) -> Unit) {
     var value by remember { mutableFloatStateOf(initialPercent / 100f) }
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -212,7 +281,7 @@ private fun SliderRow(label: String, initialPercent: Int, onValue: (Int) -> Unit
                 onValue((v * 100).toInt())
             },
             valueRange = 0f..1f,
-            colors = androidx.compose.material3.SliderDefaults.colors(activeTrackColor = MaterialTheme.colorScheme.primary),
+            colors = SliderDefaults.colors(activeTrackColor = MaterialTheme.colorScheme.primary),
         )
     }
 }

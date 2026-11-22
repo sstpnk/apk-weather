@@ -20,6 +20,7 @@ object Notifications {
     const val CHANNEL_DAILY = "weather_daily"
     private const val SHADE_ID = 1001
     private const val DAILY_ID = 1002
+    private const val EVENING_ID = 1003
 
     fun ensure(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -54,8 +55,8 @@ object Notifications {
         notify(context, SHADE_ID, notification)
     }
 
-    /** Ежедневное уведомление «Погода на сегодня». */
-    fun showDaily(context: Context, data: WeatherData) {
+    /** Уведомление утром — на текущий день. */
+    fun showMorning(context: Context, data: WeatherData) {
         val intent = Intent(context, MainActivity::class.java)
         val pending = PendingIntent.getActivity(
             context, 2, intent,
@@ -71,6 +72,24 @@ object Notifications {
             .build()
         notify(context, DAILY_ID, notification)
     }
+
+    /** Уведомление вечером — на завтра. */
+    fun showEvening(context: Context, data: WeatherData) {
+        val intent = Intent(context, MainActivity::class.java)
+        val pending = PendingIntent.getActivity(
+            context, 3, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = NotificationCompat.Builder(context, CHANNEL_DAILY)
+            .setSmallIcon(weatherIconRes(data.current?.condition, null, true))
+            .setContentTitle(WidgetRenderer.eveningTitle(data))
+            .setContentText(WidgetRenderer.eveningText(data))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(WidgetRenderer.eveningText(data)))
+            .setContentIntent(pending)
+            .setAutoCancel(true)
+            .build()
+        notify(context, EVENING_ID, notification)
+ }
 
     private fun notify(context: Context, id: Int, notification: android.app.Notification) {
         runCatching {
