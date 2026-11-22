@@ -14,3 +14,6 @@ captures/
 .analysis/
 .zwork/
 .claude/
+
+# Собранные APK в корне
+/*.apk
