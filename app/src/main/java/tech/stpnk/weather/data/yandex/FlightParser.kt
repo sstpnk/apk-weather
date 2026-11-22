@@ -26,8 +26,9 @@ import java.time.ZoneOffset
 class FlightParser(private val today: () -> LocalDate = { LocalDate.now(ZoneOffset.UTC) }) {
 
     private val rowRegex = Regex("""^([0-9a-fA-F]*):(.*)$""", RegexOption.DOT_MATCHES_ALL)
-    private val timeRegex = Regex("""^\d{1,2}:\d{2}$""")
+    private val hourTimeRegex = Regex("""^\d{1,2}:00$""")
     private val tempRegex = Regex("""^[+\-\u2212]?\d+°$""")
+    private val embeddedTempRegex = Regex("""(?:^|[\s,:])([+\-\u2212]?\d{1,2})°""")
 
     fun parse(payload: String, sourceUrl: String = ""): WeatherData {
         val rowMap = LinkedHashMap<String, JsonElement>()
@@ -248,10 +249,17 @@ class FlightParser(private val today: () -> LocalDate = { LocalDate.now(ZoneOffs
             if (!cn.contains("AppHourlyItem_container__")) return@forEachObject
             val strings = ArrayList<String>(8)
             collectStrings(obj, strings)
-            val time = strings.firstOrNull { timeRegex.matches(it) } ?: return@forEachObject
-            val temp = strings.firstOrNull { tempRegex.matches(it) }?.let(::parseTemp)
+            // Внутри карточки часа могут быть восход/закат вида «16:12».
+            // Прогноз Яндекса дискретен по часам, поэтому берём только HH:00.
+            val time = strings.firstOrNull { hourTimeRegex.matches(it) } ?: return@forEachObject
+            // В отдельных часах Яндекс кладёт температуру только в a11y-строку,
+            // а не отдельным текстовым узлом (так выпадал, например, 05:00).
+            val temp = strings.firstNotNullOfOrNull(::hourlyTemperature)
             val icon = obj.iconIndex()
             val a11y = strings.lastOrNull { it.length > 12 && it.contains(':') }
+            // Flight содержит промежуточные оболочки с одним временем. Это не
+            // прогнозная ячейка: настоящая приходит ниже с температурой/иконкой.
+            if (temp == null && icon == null && a11y == null) return@forEachObject
             val key = "$time|$temp|$icon"
             out.putIfAbsent(key, HourForecast(time = time, temperatureC = temp, icon = icon, summary = a11y))
         }
@@ -354,4 +362,8 @@ class FlightParser(private val today: () -> LocalDate = { LocalDate.now(ZoneOffs
         val cleaned = text.replace('°', ' ').replace('\u2212', '-').trim()
         return cleaned.takeIf { it.isNotEmpty() }?.let { it.toIntOrNull() ?: it.toDoubleOrNull()?.toInt() }
     }
+
+    private fun hourlyTemperature(text: String): Int? =
+        if (tempRegex.matches(text)) parseTemp(text)
+        else embeddedTempRegex.find(text)?.groupValues?.get(1)?.toIntOrNull()
 }

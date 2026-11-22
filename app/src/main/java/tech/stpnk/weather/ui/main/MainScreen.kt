@@ -3,6 +3,7 @@ package tech.stpnk.weather.ui.main
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -47,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import tech.stpnk.weather.Graph
@@ -211,9 +213,13 @@ private fun ContentScreen(
 
                 if (data.warnings.isNotEmpty()) {
                     Spacer(Modifier.height(10.dp))
-                    // Плашки вбок, в порядке Сегодня → Завтра → На следующей неделе
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(data.warnings) { warning -> WarningCard(warning) }
+                    // Каждая плашка занимает ширину видимой области и одну высоту.
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(data.warnings) { warning ->
+                                WarningCard(warning, Modifier.width(maxWidth).height(106.dp))
+                            }
+                        }
                     }
                 }
 
@@ -415,11 +421,11 @@ private fun hourCondition(hour: HourForecast): String? {
 }
 
 @Composable
-private fun WarningCard(warning: WarningPlaque) {
+private fun WarningCard(warning: WarningPlaque, modifier: Modifier) {
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.width(310.dp),
+        modifier = modifier,
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
             Box(
@@ -439,12 +445,8 @@ private fun WarningCard(warning: WarningPlaque) {
                     "${warning.title}: ${warning.text}",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Подробный прогноз ›",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }

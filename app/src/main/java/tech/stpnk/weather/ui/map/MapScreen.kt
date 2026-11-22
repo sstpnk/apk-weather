@@ -54,7 +54,7 @@ fun MapScreen(cityName: String, lat: Double, lon: Double, onBack: () -> Unit) {
     }
     var frameLabel by remember { mutableStateOf("") }
 
-    val mapView = remember {
+    val mapView = remember(context, lat, lon) {
         configureOsmdroid(context)
         MapView(context).apply {
             setTileSource(TileSourceFactory.MAPNIK)
@@ -85,9 +85,12 @@ fun MapScreen(cityName: String, lat: Double, lon: Double, onBack: () -> Unit) {
         }
     }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(mapView) {
         mapView.onResume()
-        onDispose { mapView.onPause() }
+        onDispose {
+            mapView.onPause()
+            mapView.onDetach()
+        }
     }
 
     Box(Modifier.fillMaxSize()) {

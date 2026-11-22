@@ -74,6 +74,7 @@ class FlightParserTest {
         assertTrue("часовых ячеек слишком мало: ${data.hourly.size}", data.hourly.size >= 20)
         data.hourly.forEach { hour ->
             assertTrue("время не по формату: ${hour.time}", Regex("""\d{1,2}:\d{2}""").matches(hour.time))
+            assertNotNull("нет температуры: $hour", hour.temperatureC)
         }
     }
 }

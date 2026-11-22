@@ -15,9 +15,9 @@ import java.io.File
 /** Общие вещи карт: конфигурация osmdroid, пин, оверлей радара. */
 fun configureOsmdroid(context: Context) {
     Configuration.getInstance().apply {
-        userAgentValue = "tech.stpnk.weather/0.1"
-        osmdroidBasePath = File(context.cacheDir, "osmdroid").apply { mkdirs() }
-        osmdroidTileCache = File(context.cacheDir, "osmdroid/tiles").apply { mkdirs() }
+        userAgentValue = "apk-weather/0.1 (https://github.com/sstpnk/apk-weather)"
+        osmdroidBasePath = File(context.filesDir, "osmdroid").apply { mkdirs() }
+        osmdroidTileCache = File(context.filesDir, "osmdroid/tiles").apply { mkdirs() }
     }
 }
 
