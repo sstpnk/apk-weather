@@ -1,31 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:pathData="M0,0h108v108h-108z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:type="linear"
-                android:startX="20"
-                android:startY="0"
-                android:endX="88"
-                android:endY="108"
-                android:startColor="#1C3C74"
-                android:endColor="#0A1122" />
-        </aapt:attr>
-    </path>
-    <path android:pathData="M60,24a38,38 0 1,0 0.001,0z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:type="radial"
-                android:centerX="60"
-                android:centerY="24"
-                android:gradientRadius="40"
-                android:startColor="#3A6FB8"
-                android:endColor="#003A6FB8" />
-        </aapt:attr>
-    </path>
+    <!-- Плотный цвет без текстур: одинаково чисто в круглой, squircle и themed маске. -->
+    <path android:fillColor="#1467D9" android:pathData="M0,0h108v108h-108z" />
+    <!-- Лёгкое световое пятно добавляет глубину, не превращаясь в мелкую деталь. -->
+    <path android:fillColor="#2E82F2" android:pathData="M0,0h108v54c-19,8 -40,7 -54,-5C38,27 23,12 0,10z" />
 </vector>

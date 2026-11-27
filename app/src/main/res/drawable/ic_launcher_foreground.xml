@@ -1,43 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Диск солнца с радиальным градиентом (чуть приподнят и отцентрован под лучи) -->
-    <path android:pathData="M54,36a15,15 0 1,0 0.001,0z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:type="radial"
-                android:centerX="54"
-                android:centerY="33"
-                android:gradientRadius="22"
-                android:startColor="#FFE082"
-                android:endColor="#FFA726" />
-        </aapt:attr>
-    </path>
-    <!-- Лучи: симметрично относительно центра диска -->
-    <path
-        android:strokeColor="#FFC94D"
-        android:strokeWidth="4.5"
-        android:strokeLineCap="round"
-        android:pathData="M54,14v7M54,51v7M31,37h7M70,37h7M38.3,21.3l5,5M64.7,47.7l5,5M69.7,21.3l-5,5M43.3,47.7l-5,5" />
-    <!-- Облако с линейным градиентом -->
-    <path android:pathData="M31,76h38a12,12 0 0,0 0.7,-24 16,16 0 0,0 -30.6,-3.6A10,10 0 0,0 31,76z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:type="linear"
-                android:startX="50"
-                android:startY="48"
-                android:endX="50"
-                android:endY="78"
-                android:startColor="#FFFFFF"
-                android:endColor="#D8E3F2" />
-        </aapt:attr>
-    </path>
-    <!-- Нижняя тень облака -->
-    <path
-        android:fillColor="#B9C8DD"
-        android:pathData="M31,76h38a12,12 0 0,0 4,-23.3 16,16 0 0,1 -42.6,4A10,10 0 0,0 31,76z" />
+    <!-- Солнце намеренно крупное: силуэт узнаётся даже на 24dp в панели запуска. -->
+    <path android:fillColor="#FFD45A" android:pathData="M73,23a15,15 0,1 0,0.001,0z" />
+    <path android:fillColor="#FFE58A" android:pathData="M68,21a8,8 0,1 0,0.001,0z" />
+
+    <!-- Холодная нижняя грань отделяет облако от фона без обводки и визуального шума. -->
+    <path android:fillColor="#B8D8FF" android:pathData="M27,77h48c9.4,0 17,-7.2 17,-16.2c0,-8.3 -6.4,-15.2 -14.7,-16.1C74.4,36.8 66.5,32 57.6,32c-11.9,0 -21.6,8.7 -23.1,20C26.8,53.4 21,59.6 21,67.2C21,72.7 23.3,75.8 27,77z" />
+
+    <!-- Главный белый силуэт: простые плавные дуги хорошо переживают любую adaptive-маску. -->
+    <path android:fillColor="#FFFFFF" android:pathData="M27,73h48c8.4,0 15,-6.2 15,-14.2c0,-7.6 -6,-13.8 -13.6,-14.2C73.8,37.5 66.4,33 57.8,33c-11.1,0 -20.1,8.3 -21,19C28.1,52.8 22,59.2 22,66.8C22,70.4 24,72.6 27,73z" />
 </vector>
