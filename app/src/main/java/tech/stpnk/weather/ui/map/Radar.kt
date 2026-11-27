@@ -48,9 +48,9 @@ object RadarFeed {
 
 /** Тайлы конкретного кадра радара: {path}/256/{z}/{x}/{y}/2/1_1.png. */
 class RadarTileSource(frame: RadarFrame) : OnlineTileSourceBase(
-    "rainviewer",
+    "rainviewer-radar-v2",
     0,
-    10,
+    RADAR_MAX_ZOOM.toInt(),
     256,
     ".png",
     arrayOf("https://tilecache.rainviewer.com${frame.path}/256/"),

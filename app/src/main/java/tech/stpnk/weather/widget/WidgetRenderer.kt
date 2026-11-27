@@ -16,6 +16,7 @@ import tech.stpnk.weather.R
 import tech.stpnk.weather.data.prefs.AppSettings
 import tech.stpnk.weather.data.prefs.WindUnit
 import tech.stpnk.weather.domain.model.WeatherData
+import tech.stpnk.weather.domain.model.HourForecast
 import tech.stpnk.weather.ui.conditionTextRu
 import tech.stpnk.weather.ui.formatPressure
 import tech.stpnk.weather.ui.formatTemp
@@ -30,6 +31,13 @@ import java.util.Locale
  * прозрачность и ч/б иконки из настроек. Тексты — чистые функции (тестируются).
  */
 object WidgetRenderer {
+
+    private data class WidgetDayPart(
+        val label: String,
+        val temperatureC: Int?,
+        val conditionText: String?,
+        val conditionCode: String?,
+    )
 
     // ---------- текстовые построители ----------
 
@@ -117,6 +125,35 @@ object WidgetRenderer {
         return "$feels · Ветер $wind · ${data.place?.city ?: "—"}"
     }
 
+    /**
+     * Яндекс иногда не присылает части суток для первого дня. В таком случае
+     * берём соответствующую почасовую запись из уже загруженного снимка; при
+     * неполном прогнозе последней безопасной опорой остаётся текущая погода.
+     */
+    private fun widgetDayParts(data: WeatherData): List<WidgetDayPart> {
+        val today = data.days.firstOrNull()
+        val tomorrow = data.days.getOrNull(1)
+        fun hourlyIn(hours: IntRange): HourForecast? = data.hourly.firstOrNull {
+            it.time.substringBefore(':').toIntOrNull() in hours
+        }
+        fun build(label: String, temp: Int?, text: String?, hours: IntRange): WidgetDayPart {
+            val hourly = hourlyIn(hours)
+            val hourText = hourly?.summary?.let { Regex("""°, (.+?), """).find(it)?.groupValues?.get(1) }
+            val resolvedText = text ?: hourText ?: conditionTextRu(data.current?.condition)
+            return WidgetDayPart(
+                label = label,
+                temperatureC = temp ?: hourly?.temperatureC ?: data.current?.temperatureC,
+                conditionText = resolvedText,
+                conditionCode = if (text == null && hourText == null) data.current?.condition else null,
+            )
+        }
+        return listOf(
+            build("Вечер", today?.parts?.get("e")?.temperatureC, today?.parts?.get("e")?.conditionText, 17..23),
+            build("Ночь", today?.parts?.get("n")?.temperatureC ?: tomorrow?.parts?.get("n")?.temperatureC, today?.parts?.get("n")?.conditionText ?: tomorrow?.parts?.get("n")?.conditionText, 0..5),
+            build("Утро", tomorrow?.parts?.get("m")?.temperatureC, tomorrow?.parts?.get("m")?.conditionText, 6..11),
+        )
+    }
+
     // ---------- отрисовка ----------
 
     fun render(context: Context, data: WeatherData) {
@@ -163,13 +200,7 @@ object WidgetRenderer {
         manager.updateAppWidget(ComponentName(context, WideWeatherWidgetProvider::class.java), wide)
 
         // 4×1 с частями суток: Вечер / Ночь / Утро (завтра)
-        val day0 = data.days.firstOrNull()
-        val day1 = data.days.getOrNull(1)
-        val parts = listOf(
-            Triple("Вечер", day0?.parts?.get("e")?.temperatureC, day0?.parts?.get("e")?.conditionText),
-            Triple("Ночь", day0?.parts?.get("n")?.temperatureC, day0?.parts?.get("n")?.conditionText),
-            Triple("Утро", day1?.parts?.get("m")?.temperatureC, day1?.parts?.get("m")?.conditionText),
-        )
+        val parts = widgetDayParts(data)
         val labelIds = listOf(R.id.widget_p1_label, R.id.widget_p2_label, R.id.widget_p3_label)
         val iconIds = listOf(R.id.widget_p1_icon, R.id.widget_p2_icon, R.id.widget_p3_icon)
         val tempIds = listOf(R.id.widget_p1_temp, R.id.widget_p2_temp, R.id.widget_p3_temp)
@@ -184,10 +215,10 @@ object WidgetRenderer {
             setTextViewText(R.id.widget_city, ", ${data.place?.city ?: "—"}")
             setTextViewText(R.id.widget_temp, formatTemp(data.current?.temperatureC, settings.tempUnit))
             setTextViewText(R.id.widget_minmax, minMax(data, settings))
-            parts.forEachIndexed { index, (label, temp, cond) ->
-                setTextViewText(labelIds[index], label)
-                setTextViewText(tempIds[index], formatTemp(temp, settings.tempUnit))
-                setImageViewResource(iconIds[index], weatherIconRes(null, cond, true))
+            parts.forEachIndexed { index, part ->
+                setTextViewText(labelIds[index], part.label)
+                setTextViewText(tempIds[index], formatTemp(part.temperatureC, settings.tempUnit))
+                setImageViewResource(iconIds[index], weatherIconRes(part.conditionCode, part.conditionText, true))
             }
             if (icon != null) setImageViewBitmap(R.id.widget_icon, icon.bitmap)
         }

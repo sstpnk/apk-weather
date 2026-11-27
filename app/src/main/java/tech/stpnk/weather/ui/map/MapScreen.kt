@@ -53,6 +53,8 @@ fun MapScreen(cityName: String, lat: Double, lon: Double, onBack: () -> Unit) {
         MapView(context).apply {
             setTileSource(YandexTileSource())
             setMultiTouchControls(true)
+            setMinZoomLevel(3.0)
+            setMaxZoomLevel(RADAR_MAX_ZOOM)
             controller.setZoom(9.0)
             controller.setCenter(GeoPoint(lat, lon))
             val marker = Marker(this).apply {

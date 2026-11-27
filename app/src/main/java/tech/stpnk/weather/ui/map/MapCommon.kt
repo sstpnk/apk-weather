@@ -14,6 +14,9 @@ import org.osmdroid.views.overlay.TilesOverlay
 import tech.stpnk.weather.R
 import java.io.File
 
+/** Радар RainViewer публикует тайлы только до этого масштаба. */
+const val RADAR_MAX_ZOOM = 10.0
+
 /** Общие вещи карт: конфигурация osmdroid, источники тайлов, пин, оверлей радара. */
 fun configureOsmdroid(context: Context) {
     Configuration.getInstance().apply {
@@ -26,7 +29,7 @@ fun configureOsmdroid(context: Context) {
 
 /** Растровые тайлы карт Яндекса (публичный core-renderer). */
 class YandexTileSource : OnlineTileSourceBase(
-    "yandex-map",
+    "yandex-map-v2",
     3,
     18,
     256,

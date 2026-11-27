@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -220,9 +221,15 @@ private fun ContentScreen(
                     if (data.warnings.isNotEmpty()) {
                         Spacer(Modifier.height(10.dp))
                         BoxWithConstraints(Modifier.fillMaxWidth()) {
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(data.warnings) { warning ->
-                                    WarningCard(warning, Modifier.width(maxWidth).height(106.dp))
+                            val cardWidth = maxWidth
+                            Row(
+                                Modifier
+                                    .horizontalScroll(rememberScrollState())
+                                    .height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                data.warnings.forEach { warning ->
+                                    WarningCard(warning, Modifier.width(cardWidth).fillMaxHeight())
                                 }
                             }
                         }
@@ -510,7 +517,7 @@ private fun DayRow(
     val dayPart = day.parts["d"]
     val nightPart = day.parts["n"]
     val accent = MaterialTheme.colorScheme.primary
-    val isAccentDay = day.isRed || dayIndex <= 1
+    val isAccentDay = day.isRed
 
     // Даты и дни недели считаем сами — подпись со страницы может пропадать
     val date = java.time.LocalDate.ofEpochDay(day.epochDay)

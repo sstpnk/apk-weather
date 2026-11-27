@@ -56,6 +56,8 @@ fun MapPreviewCard(
         MapView(context).apply {
             setTileSource(YandexTileSource())
             setMultiTouchControls(false)
+            setMinZoomLevel(3.0)
+            setMaxZoomLevel(RADAR_MAX_ZOOM)
             controller.setZoom(8.8)
             controller.setCenter(GeoPoint(lat, lon))
             val marker = Marker(this).apply {
