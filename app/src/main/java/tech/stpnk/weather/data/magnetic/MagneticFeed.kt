@@ -9,6 +9,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.time.LocalDate
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * Магнитное поле: NOAA SWPC, планетарный Kp-индекс (публичный фид без ключа).
@@ -52,6 +53,9 @@ object MagneticFeed {
         }.getOrNull()
     }
 
-    fun format(value: Double?): String? =
-        value?.let { String.format(Locale.US, "%.1f", it) }
+    fun format(value: Double?): String? = value?.let {
+        val rounded = (it * 10).roundToInt() / 10.0
+        if (rounded % 1.0 == 0.0) rounded.toInt().toString()
+        else String.format(Locale.US, "%.1f", rounded)
+    }
 }

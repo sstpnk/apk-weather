@@ -11,24 +11,37 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:orientation="horizontal">
 
-        <TextClock
-            android:id="@+id/widget_clock"
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:format12Hour="HH:mm"
-            android:format24Hour="HH:mm"
-            android:textColor="#FFFFFF"
-            android:textSize="40sp" />
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center_vertical">
+
+            <TextClock
+                android:id="@+id/widget_clock"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:format12Hour="HH:mm"
+                android:format24Hour="HH:mm"
+                android:textColor="#FFFFFF"
+                android:textSize="40sp" />
+
+            <TextView
+                android:id="@+id/widget_datecity"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#B3FFFFFF"
+                android:textSize="11sp" />
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:orientation="vertical"
-            android:gravity="end">
+            android:gravity="center_vertical|end">
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -38,31 +51,25 @@
 
                 <ImageView
                     android:id="@+id/widget_icon"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp" />
+                    android:layout_width="30dp"
+                    android:layout_height="30dp" />
 
                 <TextView
                     android:id="@+id/widget_temp"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
+                    android:layout_marginStart="8dp"
                     android:textColor="#FFFFFF"
-                    android:textSize="22sp" />
+                    android:textSize="26sp" />
             </LinearLayout>
 
             <TextView
                 android:id="@+id/widget_daynight"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
                 android:textColor="#B3FFFFFF"
                 android:textSize="11sp" />
         </LinearLayout>
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/widget_datecity"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textColor="#B3FFFFFF"
-        android:textSize="11sp" />
 </LinearLayout>

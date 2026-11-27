@@ -44,6 +44,13 @@ class WideWeatherWidgetProvider : AppWidgetProvider() {
     }
 }
 
+/** 4×1: части суток — Вечер / Ночь / Утро. */
+class DayPartsWeatherWidgetProvider : AppWidgetProvider() {
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        refreshAndRender(context, this)
+    }
+}
+
 /** 4×1: часы — крупное время, дата/город, день/ночь. */
 class ClockWeatherWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {

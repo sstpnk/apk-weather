@@ -75,6 +75,17 @@
         </receiver>
 
         <receiver
+            android:name=".widget.DayPartsWeatherWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_dayparts_info" />
+        </receiver>
+
+        <receiver
             android:name=".bg.ShadeAlarmReceiver"
             android:exported="false" />
 
@@ -84,10 +95,6 @@
 
         <receiver
             android:name=".bg.EveningAlarmReceiver"
-            android:exported="false" />
-
-        <receiver
-            android:name=".bg.SourceRetryReceiver"
             android:exported="false" />
 
         <receiver

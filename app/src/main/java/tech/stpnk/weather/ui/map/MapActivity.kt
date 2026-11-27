@@ -17,7 +17,6 @@ class MapActivity : ComponentActivity() {
             WeatherTheme {
                 MapScreen(
                     cityName = city.name,
-                    cityUrl = city.url,
                     lat = city.lat ?: 55.7522,
                     lon = city.lon ?: 37.6156,
                     onBack = { finish() },

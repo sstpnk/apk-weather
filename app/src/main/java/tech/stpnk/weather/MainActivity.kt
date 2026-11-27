@@ -83,7 +83,6 @@ class MainActivity : ComponentActivity() {
                     settings = settings,
                     onOpenCities = {
                         startActivity(Intent(this, CitiesActivity::class.java))
-                        overridePendingTransition(R.anim.slide_in_left, R.anim.stay)
                     },
                     onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
                     onOpenMap = { startActivity(Intent(this, MapActivity::class.java)) },

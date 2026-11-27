@@ -9,40 +9,33 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import tech.stpnk.weather.MainActivity
 import tech.stpnk.weather.R
-import tech.stpnk.weather.data.prefs.WeatherProvider
-import tech.stpnk.weather.data.repo.SourceChange
 import tech.stpnk.weather.domain.model.WeatherData
 import tech.stpnk.weather.ui.weatherIconRes
 import tech.stpnk.weather.widget.WidgetRenderer
 
-/** Каналы уведомлений + «виджет в шторке» (ongoing) + ежедневный прогноз. */
+/** Каналы уведомлений + «уведомление в шторке» (ongoing) + утреннее/вечернее. */
 object Notifications {
 
     const val CHANNEL_SHADE = "weather_shade"
     const val CHANNEL_DAILY = "weather_daily"
-    const val CHANNEL_SOURCE = "weather_source"
     private const val SHADE_ID = 1001
     private const val DAILY_ID = 1002
     private const val EVENING_ID = 1003
-    private const val SOURCE_ID = 1004
 
     fun ensure(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_SHADE, "Виджет в шторке", NotificationManager.IMPORTANCE_LOW).apply {
+            NotificationChannel(CHANNEL_SHADE, "Уведомление в шторке", NotificationManager.IMPORTANCE_LOW).apply {
                 setShowBadge(false)
             }
         )
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_DAILY, "Погода на сегодня", NotificationManager.IMPORTANCE_DEFAULT)
-        )
-        manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_SOURCE, "Источник погоды", NotificationManager.IMPORTANCE_DEFAULT)
+            NotificationChannel(CHANNEL_DAILY, "Погода на сегодня и завтра", NotificationManager.IMPORTANCE_DEFAULT)
         )
     }
 
-    /** Постоянное уведомление-виджет в шторке: обновляется воркером, без звука. */
+    /** Постоянное уведомление-виджет в шторке: обновляется будильником, без звука. */
     fun showShade(context: Context, data: WeatherData) {
         val intent = Intent(context, MainActivity::class.java)
         val pending = PendingIntent.getActivity(
@@ -64,9 +57,8 @@ object Notifications {
 
     /** Уведомление утром — на текущий день. */
     fun showMorning(context: Context, data: WeatherData) {
-        val intent = Intent(context, MainActivity::class.java)
         val pending = PendingIntent.getActivity(
-            context, 2, intent,
+            context, 2, Intent(context, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_DAILY)
@@ -82,9 +74,8 @@ object Notifications {
 
     /** Уведомление вечером — на завтра. */
     fun showEvening(context: Context, data: WeatherData) {
-        val intent = Intent(context, MainActivity::class.java)
         val pending = PendingIntent.getActivity(
-            context, 3, intent,
+            context, 3, Intent(context, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_DAILY)
@@ -98,42 +89,17 @@ object Notifications {
         notify(context, EVENING_ID, notification)
     }
 
-    /** Отдельное уведомление: приложение сменило источник после серии повторов. */
-    fun showSourceChanged(context: Context, change: SourceChange) {
-        val intent = Intent(context, MainActivity::class.java)
-        val pending = PendingIntent.getActivity(
-            context, 4, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        val text = "${providerName(change.from)} недоступен. Используется ${providerName(change.to)}."
-        val notification = NotificationCompat.Builder(context, CHANNEL_SOURCE)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("Источник погоды изменён")
-            .setContentText(text)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-            .setContentIntent(pending)
-            .setAutoCancel(true)
-            .build()
-        notify(context, SOURCE_ID, notification)
-    }
-
-    private fun providerName(provider: WeatherProvider): String = when (provider) {
-        WeatherProvider.YANDEX -> "Яндекс Погода"
-        WeatherProvider.OPEN_METEO -> "Open-Meteo"
-        WeatherProvider.MET_NORWAY -> "MET Norway"
+    fun cancelShade(context: Context) {
+        runCatching {
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            manager?.cancel(SHADE_ID)
+        }
     }
 
     private fun notify(context: Context, id: Int, notification: android.app.Notification) {
         runCatching {
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             manager?.notify(id, notification)
-        }
-    }
-
-    fun cancelShade(context: Context) {
-        runCatching {
-            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-            manager?.cancel(SHADE_ID)
         }
     }
 }

@@ -60,6 +60,9 @@ class FlightParserTest {
         assertTrue("закат не по формату", Regex("\\d{2}:\\d{2}").matches(today.sunset ?: ""))
         assertNotNull("нет УФ-текста", today.uvText)
         assertNotNull("нет магнитного поля", today.kpText)
+        val tomorrow = requireNotNull(data.days.getOrNull(1)) { "нет завтрашнего дня" }
+        assertTrue("нет завтрашнего восхода: ${tomorrow.sunrise}", Regex("\\d{2}:\\d{2}").matches(tomorrow.sunrise ?: ""))
+        assertTrue("нет завтрашнего заката: ${tomorrow.sunset}", Regex("\\d{2}:\\d{2}").matches(tomorrow.sunset ?: ""))
     }
 
     @Test

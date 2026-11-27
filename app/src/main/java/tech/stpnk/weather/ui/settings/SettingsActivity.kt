@@ -38,12 +38,10 @@ class SettingsActivity : ComponentActivity() {
                     onChange = { new ->
                         val old = settings
                         val themeChanged = new.theme != old.theme
-                        val providerChanged = new.weatherProvider != old.weatherProvider
                         store.save(new)
                         settings = new
                         // расписание будильников (интервал, время уведомлений) могло измениться
                         AlarmScheduler.scheduleAll(this)
-                        if (providerChanged) AlarmScheduler.cancelSourceRetry(this)
                         // виджеты перерисовываем сразу (прозрачность/ч-б/смена источника)
                         WidgetRenderer.renderFromCache(this)
                         // «Уведомление в шторке»: включили — показываем сразу; выключили — снимаем

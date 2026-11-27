@@ -6,7 +6,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import tech.stpnk.weather.data.cache.WeatherCache
 import tech.stpnk.weather.data.cities.CityEntry
-import tech.stpnk.weather.data.prefs.KeyValueStore
 import tech.stpnk.weather.data.prefs.WeatherProvider
 import tech.stpnk.weather.data.yandex.WeatherSource
 import tech.stpnk.weather.domain.model.CurrentWeather
@@ -36,14 +35,7 @@ class WeatherRepositoryTest {
     private fun repository(source: WeatherSource, cache: WeatherCache) = WeatherRepository(
         sources = WeatherProvider.entries.associateWith { source },
         cache = cache,
-        failover = SourceFailoverStore(FakeKeyValueStore()),
     )
-
-    private class FakeKeyValueStore : KeyValueStore {
-        private val values = mutableMapOf<String, String>()
-        override fun getString(key: String): String? = values[key]
-        override fun putString(key: String, value: String) { values[key] = value }
-    }
 
     @Test
     fun `первый запрос идёт в сеть и пишет кэш`() = runBlocking {
@@ -86,11 +78,12 @@ class WeatherRepositoryTest {
     }
 
     @Test
-    fun `ошибка без кэша — Failed`() = runBlocking {
+    fun `ошибка без кэша — Failed и никакого переключения источника`() = runBlocking {
         val emptyDir = Files.createTempDirectory("weather-cache-empty").toFile()
         val source = FakeSource { throw IOException("нет сети") }
         val repo = repository(source, WeatherCache(emptyDir))
         val outcome = repo.load(city, WeatherProvider.YANDEX)
         assertTrue("ожидался Failed", outcome is LoadOutcome.Failed)
+        assertEquals(1, source.calls)
     }
 }

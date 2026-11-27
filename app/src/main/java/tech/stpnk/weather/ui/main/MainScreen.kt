@@ -48,17 +48,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import tech.stpnk.weather.Graph
 import tech.stpnk.weather.R
 import tech.stpnk.weather.data.prefs.AppSettings
+import tech.stpnk.weather.data.prefs.WeatherProvider
 import tech.stpnk.weather.domain.model.CurrentWeather
 import tech.stpnk.weather.domain.model.DayForecast
 import tech.stpnk.weather.domain.model.HourForecast
-import tech.stpnk.weather.domain.model.WarningPlaque
 import tech.stpnk.weather.domain.model.WeatherData
+import tech.stpnk.weather.domain.model.WarningPlaque
 import tech.stpnk.weather.ui.conditionTextRu
 import tech.stpnk.weather.ui.formatPressure
 import tech.stpnk.weather.ui.formatTemp
@@ -132,6 +134,8 @@ private fun ContentScreen(
         if (isDay) listOf(Color(0xFF1E7BD6), Color(0xFF1560BF))
         else listOf(Color(0xFF0B1626), Color(0xFF0A101C))
     )
+    // Карта и предупреждения доступны только у Яндекс Погоды.
+    val isYandex = settings.weatherProvider == WeatherProvider.YANDEX
 
     PullToRefreshBox(
         isRefreshing = state.refreshing,
@@ -149,7 +153,7 @@ private fun ContentScreen(
                     onOpenSettings = onOpenSettings,
                     onRefresh = onRefresh,
                 )
-                // Слева — текущая погода, справа — метрики с иконками; высоты выровнены
+                // Слева — температура и состояние, справа — метрики; высоты совпадают
                 Row(
                     Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -158,18 +162,20 @@ private fun ContentScreen(
                         Modifier.weight(1f).fillMaxHeight(),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
+                        // Температура и иконка одной высоты
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 formatTemp(current?.temperatureC, settings.tempUnit),
                                 color = Color.White,
                                 fontSize = 64.sp,
+                                lineHeight = 64.sp,
                                 fontWeight = FontWeight.Light,
                             )
                             Spacer(Modifier.width(10.dp))
                             Icon(
                                 painterResource(weatherIconRes(current?.condition, null, isDay)),
                                 contentDescription = null,
-                                modifier = Modifier.size(84.dp),
+                                modifier = Modifier.size(64.dp),
                                 tint = Color.Unspecified,
                             )
                         }
@@ -191,33 +197,33 @@ private fun ContentScreen(
                         modifier = Modifier.width(168.dp).fillMaxHeight(),
                     )
                 }
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(12.dp))
                 HourlyStrip(
                     hourly = data.hourly,
-                    sunrise = data.days.firstOrNull()?.sunrise,
-                    sunset = data.days.firstOrNull()?.sunset,
+                    days = data.days,
                     isDay = isDay,
                     settings = settings,
                 )
             }
 
             Column(Modifier.padding(horizontal = 16.dp)) {
-                Spacer(Modifier.height(12.dp))
-                MapPreviewCard(
-                    cityUrl = city.url,
-                    lat = city.lat ?: 55.7522,
-                    lon = city.lon ?: 37.6156,
-                    banner = precipitationOutlook(data.hourly.mapNotNull { it.summary }),
-                    onClick = onOpenMap,
-                )
+                if (isYandex) {
+                    Spacer(Modifier.height(12.dp))
+                    MapPreviewCard(
+                        cityName = data.place?.city ?: city.name,
+                        lat = city.lat ?: 55.7522,
+                        lon = city.lon ?: 37.6156,
+                        banner = precipitationOutlook(data.hourly.mapNotNull { it.summary }),
+                        onClick = onOpenMap,
+                    )
 
-                if (data.warnings.isNotEmpty()) {
-                    Spacer(Modifier.height(10.dp))
-                    // Каждая плашка занимает ширину видимой области и одну высоту.
-                    BoxWithConstraints(Modifier.fillMaxWidth()) {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(data.warnings) { warning ->
-                                WarningCard(warning, Modifier.width(maxWidth).height(106.dp))
+                    if (data.warnings.isNotEmpty()) {
+                        Spacer(Modifier.height(10.dp))
+                        BoxWithConstraints(Modifier.fillMaxWidth()) {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(data.warnings) { warning ->
+                                    WarningCard(warning, Modifier.width(maxWidth).height(106.dp))
+                                }
                             }
                         }
                     }
@@ -235,17 +241,21 @@ private fun ContentScreen(
                     data.days.forEachIndexed { index, day ->
                         val fallbackDay = if (index == 0) todayRange?.first else null
                         val fallbackNight = if (index == 0) todayRange?.second else null
-                        DayRow(day, settings, fallbackDay, fallbackNight)
+                        DayRow(index, day, settings, fallbackDay, fallbackNight)
                     }
                 }
-                Spacer(Modifier.height(18.dp))
-                if (state.stale) {
-                    Text(
-                        stringResource(R.string.stale_note),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
-                    )
-                }
+                Spacer(Modifier.height(14.dp))
+                // Время последнего обновления — по центру, мелким шрифтом
+                val updated = java.time.Instant.ofEpochMilli(data.fetchedAt)
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+                Text(
+                    text = if (state.stale) "данные из кеша от $updated" else "обновлено $updated",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Spacer(Modifier.navigationBarsPadding().height(14.dp))
             }
         }
@@ -295,11 +305,11 @@ private fun MetricColumn(current: CurrentWeather?, data: WeatherData, settings: 
     }
     val magnetic = buildString {
         append("МП ")
-        val cur = tech.stpnk.weather.data.magnetic.MagneticFeed.format(data.magneticCurrent)
-        val max = tech.stpnk.weather.data.magnetic.MagneticFeed.format(data.magneticMaxToday)
-        if (cur != null) {
-            append(cur)
-            if (max != null) append(" / $max")
+        val currentKp = tech.stpnk.weather.data.magnetic.MagneticFeed.format(data.magneticCurrent)
+        val maxKp = tech.stpnk.weather.data.magnetic.MagneticFeed.format(data.magneticMaxToday)
+        if (currentKp != null) {
+            append(currentKp)
+            if (maxKp != null) append(" / $maxKp")
         } else {
             val fallback = data.days.firstOrNull()?.kpText?.replaceFirstChar { it.uppercase() }
             append(fallback ?: "—")
@@ -308,13 +318,22 @@ private fun MetricColumn(current: CurrentWeather?, data: WeatherData, settings: 
     Column(modifier, verticalArrangement = Arrangement.SpaceBetween) {
         MetricIconRow(R.drawable.ic_metric_wind, wind)
         MetricIconRow(R.drawable.ic_metric_pressure, formatPressure(current?.pressureMmHg, settings.pressureUnit))
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            MetricIconRow(R.drawable.ic_metric_humidity, current?.humidity?.let { "$it%" } ?: "—")
-            MetricIconRow(R.drawable.ic_metric_water, current?.waterTempC?.let { formatTemp(it, settings.tempUnit) } ?: "—")
+        // влажность и вода в одной строке (показываем только если есть данные)
+        val hasHumidity = current?.humidity != null
+        val hasWater = current?.waterTempC != null
+        if (hasHumidity || hasWater) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (hasHumidity) MetricIconRow(R.drawable.ic_metric_humidity, "${current!!.humidity}%")
+                if (hasWater) MetricIconRow(R.drawable.ic_metric_water, formatTemp(current!!.waterTempC, settings.tempUnit))
+            }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            MetricIconRow(R.drawable.ic_metric_uv, current?.uvIndex?.let { "УФ $it" } ?: "УФ —", compact = true)
-            MetricIconRow(R.drawable.ic_metric_kp, magnetic, compact = true)
+        // УФ и магнитное поле в одной строке (тоже только при наличии данных)
+        val hasUv = current?.uvIndex != null
+        if (hasUv || magnetic != "МП —") {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (hasUv) MetricIconRow(R.drawable.ic_metric_uv, "УФ ${current!!.uvIndex}", compact = true)
+                MetricIconRow(R.drawable.ic_metric_kp, magnetic, compact = true)
+            }
         }
     }
 }
@@ -341,12 +360,11 @@ private fun MetricIconRow(iconRes: Int, value: String, compact: Boolean = false)
 @Composable
 private fun HourlyStrip(
     hourly: List<HourForecast>,
-    sunrise: String?,
-    sunset: String?,
+    days: List<DayForecast>,
     isDay: Boolean,
     settings: AppSettings,
 ) {
-    val cells = remember(hourly, sunrise, sunset) { buildHourCells(hourly, sunrise, sunset) }
+    val cells = remember(hourly, days) { buildHourCells(hourly, days) }
     LazyRow(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(18.dp),
@@ -354,15 +372,17 @@ private fun HourlyStrip(
         items(cells) { cell ->
             when (cell) {
                 is HourCell.Sun -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // время сверху, иконка ниже, подпись ещё ниже — как у соседних ячеек
+                    Text(cell.time, color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp)
+                    Spacer(Modifier.height(6.dp))
                     Icon(
                         painterResource(if (cell.rise) R.drawable.ic_sunrise else R.drawable.ic_sunset),
                         contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.85f),
-                        modifier = Modifier.size(22.dp),
+                        tint = Color.White,
+                        modifier = Modifier.size(30.dp),
                     )
                     Spacer(Modifier.height(4.dp))
-                    Text(if (cell.rise) "восход" else "закат", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
-                    Text(cell.time, color = Color.White, fontSize = 13.sp)
+                    Text(if (cell.rise) "восход" else "закат", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
                 }
                 is HourCell.Hour -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(cell.data.time, color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp)
@@ -386,27 +406,41 @@ private fun HourlyStrip(
     }
 }
 
+/** Ячейки ленты: часы + маркеры восхода/заката по таймлайну (для сегодня и завтра). */
 private sealed interface HourCell {
     data class Hour(val data: HourForecast) : HourCell
     data class Sun(val time: String, val rise: Boolean) : HourCell
 }
 
-private fun buildHourCells(hourly: List<HourForecast>, sunrise: String?, sunset: String?): List<HourCell> {
+private fun buildHourCells(hourly: List<HourForecast>, days: List<DayForecast>): List<HourCell> {
     if (hourly.isEmpty()) return emptyList()
     val out = mutableListOf<HourCell>()
-    val firstHour = hourly.first().time
-    // если восход/закат раньше первого показанного часа — маркер уже неактуален
-    var riseDone = sunrise == null || sunrise <= firstHour
-    var setDone = sunset == null || sunset <= firstHour
+    var dayIndex = 0
+    var prevHour: Int? = null
+    var segmentFirst: String? = null
+    val riseDone = mutableSetOf<Int>()
+    val setDone = mutableSetOf<Int>()
     for (hour in hourly) {
-        val time = hour.time
-        if (!riseDone && sunrise != null && time >= sunrise) {
-            out += HourCell.Sun(sunrise, rise = true)
-            riseDone = true
+        val hh = hour.time.substringBefore(':').toIntOrNull() ?: continue
+        if (prevHour != null && hh < prevHour) {
+            dayIndex++
+            segmentFirst = null
         }
-        if (!setDone && sunset != null && time >= sunset) {
-            out += HourCell.Sun(sunset, rise = false)
-            setDone = true
+        if (segmentFirst == null) segmentFirst = hour.time
+        prevHour = hh
+
+        val day = days.getOrNull(dayIndex)
+        day?.sunrise?.let { sr ->
+            if (dayIndex !in riseDone && hour.time >= sr && sr > segmentFirst) {
+                out += HourCell.Sun(sr, rise = true)
+                riseDone.add(dayIndex)
+            }
+        }
+        day?.sunset?.let { ss ->
+            if (dayIndex !in setDone && hour.time >= ss && ss > segmentFirst) {
+                out += HourCell.Sun(ss, rise = false)
+                setDone.add(dayIndex)
+            }
         }
         out += HourCell.Hour(hour)
     }
@@ -467,6 +501,7 @@ private fun warningIcon(code: String?): Int {
 
 @Composable
 private fun DayRow(
+    dayIndex: Int,
     day: DayForecast,
     settings: AppSettings,
     fallbackDayTemp: Int?,
@@ -474,9 +509,18 @@ private fun DayRow(
 ) {
     val dayPart = day.parts["d"]
     val nightPart = day.parts["n"]
-    val (weekday, date) = splitLabel(day.label)
     val accent = MaterialTheme.colorScheme.primary
-    val isAccentDay = day.isRed || weekday == "Сегодня" || weekday == "Завтра"
+    val isAccentDay = day.isRed || dayIndex <= 1
+
+    // Даты и дни недели считаем сами — подпись со страницы может пропадать
+    val date = java.time.LocalDate.ofEpochDay(day.epochDay)
+    val weekday = when (dayIndex) {
+        0 -> "Сегодня"
+        1 -> "Завтра"
+        else -> date.format(java.time.format.DateTimeFormatter.ofPattern("EEEE", java.util.Locale.forLanguageTag("ru")))
+            .replaceFirstChar { it.uppercase() }
+    }
+    val dateText = date.format(java.time.format.DateTimeFormatter.ofPattern("d MMMM", java.util.Locale.forLanguageTag("ru")))
 
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -488,9 +532,7 @@ private fun DayRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                date?.let {
-                    Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f))
-                }
+                Text(dateText, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f))
                 Text(
                     weekday,
                     fontSize = 16.sp,
@@ -517,11 +559,4 @@ private fun TempColumn(label: String, value: Int?, settings: AppSettings) {
         Text(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f))
         Text(formatTemp(value, settings.tempUnit), fontSize = 16.sp, fontWeight = FontWeight.Medium)
     }
-}
-
-private fun splitLabel(label: String?): Pair<String, String?> {
-    if (label.isNullOrBlank()) return "—" to null
-    val idx = label.indexOf(',')
-    return if (idx < 0) label.trim() to null
-    else label.substring(0, idx).trim() to label.substring(idx + 1).trim()
 }

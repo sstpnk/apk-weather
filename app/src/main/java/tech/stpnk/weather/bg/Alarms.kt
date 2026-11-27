@@ -28,7 +28,6 @@ object AlarmScheduler {
     private const val RC_SHADE = 100
     private const val RC_MORNING = 101
     private const val RC_EVENING = 102
-    private const val RC_SOURCE_RETRY = 103
 
     fun scheduleAll(context: Context) {
         scheduleShade(context)
@@ -56,18 +55,6 @@ object AlarmScheduler {
         scheduleOne(manager, context, EveningAlarmReceiver::class.java, RC_EVENING, settings.eveningEnabled, settings.eveningHour)
     }
 
-    /** Сетевой повтор после ошибки источника; не зависит от обычного интервала виджета. */
-    fun scheduleSourceRetry(context: Context, retryAtMs: Long) {
-        val manager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
-        val pending = pending(context, SourceRetryReceiver::class.java, RC_SOURCE_RETRY)
-        manager.cancel(pending)
-        manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, retryAtMs.coerceAtLeast(System.currentTimeMillis() + 1_000L), pending)
-    }
-
-    fun cancelSourceRetry(context: Context) {
-        val manager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
-        manager.cancel(pending(context, SourceRetryReceiver::class.java, RC_SOURCE_RETRY))
-    }
 
     private fun scheduleOne(
         manager: AlarmManager,
@@ -126,25 +113,6 @@ class ShadeAlarmReceiver : BroadcastReceiver() {
                     else Notifications.cancelShade(context)
                 }
                 AlarmScheduler.scheduleShade(context)
-            } finally {
-                result.finish()
-            }
-        }
-    }
-}
-
-/** Повтор загрузки по backoff-плану источника. */
-class SourceRetryReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        val result = goAsync()
-        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            try {
-                val settings = Graph.settings.load()
-                val data = loadWeather(settings, force = true, maxAgeMinutes = 0)
-                if (data != null) {
-                    WidgetRenderer.render(context, data)
-                    if (settings.shadeEnabled) Notifications.showShade(context, data)
-                }
             } finally {
                 result.finish()
             }

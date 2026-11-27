@@ -30,9 +30,17 @@ fun formatTemp(valueC: Int?, unit: TempUnit): String {
 
 fun formatWind(speedMs: Double?, unit: WindUnit): String {
     val ms = speedMs ?: return "—"
+    val v = when (unit) {
+        WindUnit.METERS_PER_SECOND -> ms
+        WindUnit.KM_PER_HOUR -> ms * 3.6
+    }
+    // не больше одного знака после запятой, без хвостов вида 3.3333333
+    val rounded = (v * 10).roundToInt() / 10.0
+    val text = if (rounded % 1.0 == 0.0) rounded.toInt().toString()
+    else String.format(java.util.Locale.US, "%.1f", rounded)
     return when (unit) {
-        WindUnit.METERS_PER_SECOND -> if (ms % 1.0 == 0.0) "${ms.toInt()} м/с" else "$ms м/с"
-        WindUnit.KM_PER_HOUR -> "${(ms * 3.6).roundToInt()} км/ч"
+        WindUnit.METERS_PER_SECOND -> "$text м/с"
+        WindUnit.KM_PER_HOUR -> "$text км/ч"
     }
 }
 

@@ -59,12 +59,12 @@ object WidgetRenderer {
         return "${formatTemp(max, settings.tempUnit)} ${formatTemp(min, settings.tempUnit)}"
     }
 
-    /** «Днём +11° · Ночью +4°» для виджета с часами. */
+    /** «Днём +11°\nНочью +4°» для виджета с часами. */
     fun dayNight(data: WeatherData, settings: AppSettings): String {
         val day = data.days.firstOrNull()
         val d = day?.parts?.get("d")?.temperatureC ?: data.current?.temperatureC
         val n = day?.parts?.get("n")?.temperatureC ?: data.days.getOrNull(1)?.parts?.get("n")?.temperatureC
-        return "Днём ${formatTemp(d, settings.tempUnit)} · Ночью ${formatTemp(n, settings.tempUnit)}"
+        return "Днём ${formatTemp(d, settings.tempUnit)}\nНочью ${formatTemp(n, settings.tempUnit)}"
     }
 
     fun dailyTitle(data: WeatherData): String = "Погода на сегодня · ${data.place?.city ?: "—"}"
@@ -162,6 +162,37 @@ object WidgetRenderer {
         }
         manager.updateAppWidget(ComponentName(context, WideWeatherWidgetProvider::class.java), wide)
 
+        // 4×1 с частями суток: Вечер / Ночь / Утро (завтра)
+        val day0 = data.days.firstOrNull()
+        val day1 = data.days.getOrNull(1)
+        val parts = listOf(
+            Triple("Вечер", day0?.parts?.get("e")?.temperatureC, day0?.parts?.get("e")?.conditionText),
+            Triple("Ночь", day0?.parts?.get("n")?.temperatureC, day0?.parts?.get("n")?.conditionText),
+            Triple("Утро", day1?.parts?.get("m")?.temperatureC, day1?.parts?.get("m")?.conditionText),
+        )
+        val labelIds = listOf(R.id.widget_p1_label, R.id.widget_p2_label, R.id.widget_p3_label)
+        val iconIds = listOf(R.id.widget_p1_icon, R.id.widget_p2_icon, R.id.widget_p3_icon)
+        val tempIds = listOf(R.id.widget_p1_temp, R.id.widget_p2_temp, R.id.widget_p3_temp)
+
+        val dayparts = RemoteViews(context.packageName, R.layout.widget_dayparts).apply {
+            setOnClickPendingIntent(R.id.widget_root, pending)
+            setInt(R.id.widget_root, "setBackgroundResource", bg)
+            listOf(R.id.widget_clock, R.id.widget_city, R.id.widget_temp, R.id.widget_minmax,
+                R.id.widget_p1_label, R.id.widget_p1_temp,
+                R.id.widget_p2_label, R.id.widget_p2_temp,
+                R.id.widget_p3_label, R.id.widget_p3_temp).forEach { setTextColor(it, main) }
+            setTextViewText(R.id.widget_city, ", ${data.place?.city ?: "—"}")
+            setTextViewText(R.id.widget_temp, formatTemp(data.current?.temperatureC, settings.tempUnit))
+            setTextViewText(R.id.widget_minmax, minMax(data, settings))
+            parts.forEachIndexed { index, (label, temp, cond) ->
+                setTextViewText(labelIds[index], label)
+                setTextViewText(tempIds[index], formatTemp(temp, settings.tempUnit))
+                setImageViewResource(iconIds[index], weatherIconRes(null, cond, true))
+            }
+            if (icon != null) setImageViewBitmap(R.id.widget_icon, icon.bitmap)
+        }
+        manager.updateAppWidget(ComponentName(context, DayPartsWeatherWidgetProvider::class.java), dayparts)
+
         val clock = RemoteViews(context.packageName, R.layout.widget_clock).apply {
             setOnClickPendingIntent(R.id.widget_root, pending)
             setInt(R.id.widget_root, "setBackgroundResource", bg)
@@ -176,7 +207,8 @@ object WidgetRenderer {
     }
 
     fun renderFromCache(context: Context) {
-        val data = Graph.cache.read(Graph.cities.selected().url)
+        val city = Graph.cities.selected()
+        val data = Graph.repository.cached(city, Graph.settings.load().weatherProvider)
         if (data != null) render(context, data) else renderEmpty(context)
     }
 
@@ -199,6 +231,13 @@ object WidgetRenderer {
             setTextColor(R.id.widget_temp, main)
         }
         manager.updateAppWidget(ComponentName(context, WideWeatherWidgetProvider::class.java), wide)
+        val dayparts = RemoteViews(context.packageName, R.layout.widget_dayparts).apply {
+            setOnClickPendingIntent(R.id.widget_root, pending)
+            setTextViewText(R.id.widget_temp, "—")
+            setTextViewText(R.id.widget_city, "Нет данных")
+            setTextColor(R.id.widget_temp, main)
+        }
+        manager.updateAppWidget(ComponentName(context, DayPartsWeatherWidgetProvider::class.java), dayparts)
         val clock = RemoteViews(context.packageName, R.layout.widget_clock).apply {
             setOnClickPendingIntent(R.id.widget_root, pending)
             setTextViewText(R.id.widget_temp, "—")

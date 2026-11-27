@@ -2,6 +2,7 @@ package tech.stpnk.weather.ui.map
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,11 +14,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,23 +29,54 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
+import tech.stpnk.weather.Graph
 
-/** Превью той же интерактивной карты Яндекс Погоды, что открывается на весь экран. */
+/**
+ * Карточка «Погода на карте»: настоящая карта на тайлах Яндекса + радар осадков,
+ * плашка-баннер поверх. Клик открывает полноэкранную карту. Внутри не интерактивна.
+ */
 @Composable
 fun MapPreviewCard(
-    cityUrl: String,
+    cityName: String,
     lat: Double,
     lon: Double,
     banner: String?,
     onClick: () -> Unit,
 ) {
     val context = LocalContext.current
-    val webView = remember(context, cityUrl, lat, lon) {
-        createYandexWeatherMap(context, cityUrl, lat, lon)
+    val frames by produceState(initialValue = emptyList<RadarFrame>()) {
+        value = RadarFeed.frames(Graph.http)
     }
-    DisposableEffect(webView) {
-        webView.onResume()
-        onDispose { disposeYandexWeatherMap(webView) }
+
+    val mapView = remember(context, cityName, lat, lon) {
+        configureOsmdroid(context)
+        MapView(context).apply {
+            setTileSource(YandexTileSource())
+            setMultiTouchControls(false)
+            controller.setZoom(8.8)
+            controller.setCenter(GeoPoint(lat, lon))
+            val marker = Marker(this).apply {
+                position = GeoPoint(lat, lon)
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                icon = pinDrawable(context)
+                title = cityName
+            }
+            overlays.add(marker)
+        }
+    }
+
+    androidx.compose.runtime.LaunchedEffect(frames) {
+        frames.lastOrNull()?.let { mapView.replaceRadarOverlay(radarOverlay(context, it)) }
+    }
+    DisposableEffect(mapView) {
+        mapView.onResume()
+        onDispose {
+            mapView.onPause()
+            mapView.onDetach()
+        }
     }
 
     Box(
@@ -50,10 +84,11 @@ fun MapPreviewCard(
             .fillMaxWidth()
             .height(190.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        AndroidView(factory = { webView }, modifier = Modifier.fillMaxSize())
-        Box(Modifier.matchParentSize().background(Color(0x1A0A1018)).clickable(onClick = onClick))
+        AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
+        // В предпросмотре жесты не нужны: верхний слой гарантирует открытие
+        // полноэкранной карты, а MapView не перехватывает нажатие.
+        Box(Modifier.matchParentSize().clickable(onClick = onClick))
         if (banner != null) {
             Row(
                 Modifier
@@ -62,14 +97,14 @@ fun MapPreviewCard(
                     .padding(10.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color(0xD9111317))
-                    .clickable(onClick = onClick)
                     .padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(banner, color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
                 Icon(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = "Открыть карту",
+                    contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(20.dp),
                 )

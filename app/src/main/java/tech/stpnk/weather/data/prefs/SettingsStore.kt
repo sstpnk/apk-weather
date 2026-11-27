@@ -58,7 +58,15 @@ class SettingsStore(private val kv: KeyValueStore) {
 
     fun load(): AppSettings = runCatching {
         kv.getString(KEY)?.let { json.decodeFromString(AppSettings.serializer(), it) }
-    }.getOrNull() ?: AppSettings()
+    }.getOrNull()?.let { settings ->
+        // Миграция установленной ранее третьей опции: теперь поддерживаются
+        // только два явно выбираемых источника, без автоматической подмены.
+        if (settings.weatherProvider == WeatherProvider.MET_NORWAY) {
+            settings.copy(weatherProvider = WeatherProvider.YANDEX)
+        } else {
+            settings
+        }
+    } ?: AppSettings()
 
     fun save(settings: AppSettings) {
         kv.putString(KEY, json.encodeToString(AppSettings.serializer(), settings))

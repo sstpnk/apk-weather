@@ -68,7 +68,10 @@ class FlightParser(private val today: () -> LocalDate = { LocalDate.now(ZoneOffs
 
     private data class DayExtra(val sunrise: String?, val sunset: String?, val uv: String?, val kp: String?)
 
-    private val sunRegex = Regex("восход\\s+(\\d{2}:\\d{2})\\s*<br\\s*/?>\\s*закат\\s+(\\d{2}:\\d{2})")
+    private val sunRegex = Regex(
+        "восход\\s+(\\d{1,2}:\\d{2})\\s*<br\\s*/?>\\s*закат\\s+(\\d{1,2}:\\d{2})",
+        RegexOption.IGNORE_CASE,
+    )
     private val uvRegex = Regex("уф-индекс:\\s*(\\d+),\\s*([^<]+?)(?:<br|$)", RegexOption.IGNORE_CASE)
     private val kpRegex = Regex("магнитное поле:\\s*([^<]+?)(?:<br|$)", RegexOption.IGNORE_CASE)
 
@@ -76,7 +79,7 @@ class FlightParser(private val today: () -> LocalDate = { LocalDate.now(ZoneOffs
     private fun parseDayExtras(strings: List<String>): List<DayExtra> {
         val result = mutableListOf<DayExtra>()
         for (text in strings) {
-            if (!text.contains("восход")) continue
+            if (!text.contains("восход", ignoreCase = true)) continue
             val sun = sunRegex.find(text) ?: continue
             val uv = uvRegex.find(text)?.groupValues?.let { "${it[1]}, ${it[2].trim()}" }
             val kp = kpRegex.find(text)?.groupValues?.get(1)

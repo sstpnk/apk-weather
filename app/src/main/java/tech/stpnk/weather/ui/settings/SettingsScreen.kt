@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -106,9 +107,6 @@ fun SettingsScreen(settings: AppSettings, onChange: (AppSettings) -> Unit, onBac
             RadioRow("Open-Meteo", settings.weatherProvider == WeatherProvider.OPEN_METEO) {
                 onChange(settings.copy(weatherProvider = WeatherProvider.OPEN_METEO))
             }
-            RadioRow("MET Norway", settings.weatherProvider == WeatherProvider.MET_NORWAY) {
-                onChange(settings.copy(weatherProvider = WeatherProvider.MET_NORWAY))
-            }
         }
 
         SectionLabel("Уведомления")
@@ -149,7 +147,8 @@ fun SettingsScreen(settings: AppSettings, onChange: (AppSettings) -> Unit, onBac
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        // Последняя опция не должна прятаться под жестовой/системной панелью.
+        Spacer(Modifier.navigationBarsPadding().height(32.dp))
     }
 
     if (intervalDialog) {
